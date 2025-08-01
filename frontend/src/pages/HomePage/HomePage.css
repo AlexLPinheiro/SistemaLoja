@@ -1,0 +1,25 @@
+/* src/pages/HomePage/HomePage.css */
+.home-page-content {
+  grid-area: main; /* Para o layout principal */
+  padding: 24px 32px;
+}
+
+.info-pill {
+  background-color: var(--light-blue-bg);
+  color: #0c5460;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  font-size: 0.9rem;
+  display: inline-block;
+}
+
+.info-pill strong {
+  margin-right: 8px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+}

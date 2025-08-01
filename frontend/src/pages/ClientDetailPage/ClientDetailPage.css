@@ -1,0 +1,135 @@
+/* src/pages/ClientDetailPage/ClientDetailPage.css */
+.client-detail-page {
+  padding: 24px 32px;
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.client-info-card {
+  display: grid;
+  grid-template-columns: 2fr 1fr 2fr 1fr auto;
+  align-items: center;
+  gap: 20px;
+  background-color: var(--white);
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 32px;
+}
+
+.client-info-card div {
+  font-size: 0.9rem;
+}
+
+.client-info-card strong {
+  display: block;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-bottom: 4px;
+}
+
+.client-info-card .actions {
+  justify-self: end;
+}
+
+.edit-btn {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+/* Estilos da tabela de pedidos aninhada */
+.order-group {
+  border-bottom: 1px solid var(--border-color);
+}
+.order-group:last-child {
+  border-bottom: none;
+}
+.products-row td {
+  padding: 0;
+  border: none;
+}
+.products-table-container {
+  padding: 16px 24px;
+  background-color: #FAFAFA;
+}
+.products-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.products-table {
+  width: 100%;
+}
+.products-table td {
+  padding: 8px 0;
+  border: none;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* Estilos para os inputs que aparecem no modo de edição */
+.info-card-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  background-color: #fcfcfd;
+}
+
+/* Contêiner para os botões Salvar/Cancelar */
+.edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Estilo base para os pequenos botões de ação (Salvar/Cancelar) */
+.action-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Cor específica para o botão Salvar */
+.save-btn {
+  background-color: #D1FAE5; /* Verde claro */
+  color: #065F46; /* Verde escuro */
+}
+.save-btn:hover:not(:disabled) {
+  background-color: #A7F3D0;
+}
+
+/* Cor específica para o botão Cancelar */
+.cancel-btn {
+  background-color: #FEE2E2; /* Vermelho claro */
+  color: #991B1B; /* Vermelho escuro */
+}
+.cancel-btn:hover:not(:disabled) {
+  background-color: #FECACA;
+}

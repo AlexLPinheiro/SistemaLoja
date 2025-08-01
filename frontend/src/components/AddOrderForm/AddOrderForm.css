@@ -1,0 +1,99 @@
+/* src/components/AddOrderForm/AddOrderForm.css */
+.add-order-form .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.add-order-form .form-group label {
+  font-weight: 500;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.add-order-form .form-group input,
+.add-order-form .form-group select {
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.form-grid-top {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.products-section {
+  margin-bottom: 16px;
+}
+
+.product-inputs-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 8px;
+  padding: 0 4px;
+}
+
+.product-inputs-header span {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.product-input-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.product-input-row input {
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  width: 100%;
+}
+
+.add-product-btn {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 0;
+  margin-bottom: 24px;
+}
+
+.add-product-btn:hover {
+  color: var(--primary-color);
+}
+
+.add-order-form .form-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.product-input-row {
+  grid-template-columns: 2.5fr 0.5fr 1.5fr 1fr; /* Nova grade para os campos */
+}
+
+.product-select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.price-ref {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 0 8px;
+}

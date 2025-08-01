@@ -1,0 +1,51 @@
+/* src/components/Button/Button.css */
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+/* Primary (roxo) */
+.btn-primary {
+  background-color: #6D28D9;
+  color: var(--white);
+}
+
+/* Danger (vermelho) */
+.btn-danger {
+  background-color: #EF4444;
+  color: var(--white);
+}
+
+/* Secondary (borda cinza) */
+.btn-secondary-outline {
+  background-color: var(--white);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-secondary-outline:hover {
+  background-color: var(--bg-color);
+}
+
+.btn-icon {
+  font-size: 1.1em;
+}
+
+.btn-success {
+  background-color: #10B981; /* Um verde bonito */
+  color: var(--white);
+  border: 1px solid #0F966B;
+}

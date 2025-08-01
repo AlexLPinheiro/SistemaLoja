@@ -1,0 +1,36 @@
+/* src/components/AddProductForm/AddProductForm.css */
+.add-product-form .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+}
+
+.add-product-form .form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.add-product-form .form-group.full-width {
+  grid-column: 1 / -1; /* Ocupa a linha inteira */
+}
+
+.add-product-form .form-group label {
+  font-weight: 500;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.add-product-form .form-group input,
+.add-product-form .form-group select {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  width: 100%;
+}
+
+.add-product-form .form-actions {
+  display: flex;
+  gap: 16px;
+  margin-top: 24px;
+}

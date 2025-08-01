@@ -1,0 +1,32 @@
+/* src/pages/SalesListPage/SalesListPage.css */
+.sales-list-page {
+  padding: 24px 32px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: flex-start; /* Alinha a barra de pesquisa à esquerda */
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.search-bar {
+  position: relative;
+  width: 400px;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 10px 16px 10px 40px; /* Espaço para o ícone */
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-secondary);
+}

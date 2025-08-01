@@ -1,0 +1,87 @@
+/* src/pages/AddClientPage/AddClientPage.css */
+.add-client-page {
+  padding: 24px 32px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.back-button {
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.breadcrumb-text {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.client-form {
+  background-color: var(--white);
+  border: 1px solid var(--border-color);
+  padding: 32px;
+  border-radius: 12px;
+}
+
+.form-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.form-row {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+.form-group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  font-weight: 500;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.form-group input {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.form-actions {
+  margin-top: 24px;
+  display: flex;
+  gap: 16px;
+}
+
+.form-error-message {
+  color: #EF4444; /* Vermelho */
+  background-color: #FEE2E2; /* Fundo vermelho claro */
+  border: 1px solid #F87171;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  text-align: center;
+}
