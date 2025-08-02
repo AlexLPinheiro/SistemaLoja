@@ -10,7 +10,7 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
     
     // Estado para os itens do pedido
     const [orderItems, setOrderItems] = useState([
-        { id: 1, produto_id: '', quantidade: 1, preco_venda_unitario: '' }
+        { id: Date.now(), produto_id: '', quantidade: 1, preco_venda_unitario: '', productDetails: null }
     ]);
     
     // Estado para a lista de produtos disponíveis no sistema
@@ -36,7 +36,7 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
     const handleAddRow = () => {
         setOrderItems([
             ...orderItems,
-            { id: Date.now(), produto_id: '', quantidade: 1, preco_venda_unitario: '' }
+            { id: Date.now(), produto_id: '', quantidade: 1, preco_venda_unitario: '', productDetails: null }
         ]);
     };
 
@@ -45,10 +45,9 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
         const updatedItems = [...orderItems];
         updatedItems[index][field] = value;
 
-        // Se o produto foi alterado, atualiza os preços para referência
         if (field === 'produto_id') {
             const product = availableProducts.find(p => p.id.toString() === value);
-            updatedItems[index].productDetails = product;
+            updatedItems[index].productDetails = product || null;
         }
         setOrderItems(updatedItems);
     };
@@ -56,19 +55,16 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        // Monta o payload para a API
         const payload = {
             cliente_id: clientId,
             metodo_pagamento: metodoPagamento,
             quantidade_parcelas: metodoPagamento === 'parcelado' ? quantidadeParcelas : 1,
-            // A lógica de status_pagamento será definida no backend ou aqui, se necessário.
-            // Por simplicidade, vamos deixar o backend definir o padrão.
-            status_pagamento: 'nao_pago', // Exemplo de status inicial
+            status_pagamento: 'nao_pago',
             itens: orderItems.map(item => ({
                 produto_id: parseInt(item.produto_id, 10),
                 quantidade: parseInt(item.quantidade, 10),
                 preco_venda_unitario: parseFloat(item.preco_venda_unitario).toFixed(2)
-            })).filter(item => item.produto_id) // Filtra linhas vazias
+            })).filter(item => item.produto_id && !isNaN(item.produto_id))
         };
         
         if (payload.itens.length === 0) {
@@ -90,7 +86,6 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
 
     return (
         <form className="add-order-form" onSubmit={handleSubmit}>
-            {/* Seção de Pagamento */}
             <div className="form-grid-top">
                 <div className="form-group">
                     <label>Tipo de pagamento:</label>
@@ -112,29 +107,37 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
                 )}
             </div>
 
-            {/* Seção de Produtos */}
             <div className="products-section">
-                {orderItems.map((item, index) => (
-                    <div key={item.id} className="product-input-row">
-                        <select 
-                            value={item.produto_id} 
-                            onChange={(e) => handleItemChange(index, 'produto_id', e.target.value)}
-                            className="product-select"
-                        >
-                            <option value="">{loading ? "Carregando..." : "Selecione um produto"}</option>
-                            {availableProducts.map(p => (
-                                <option key={p.id} value={p.id}>{p.nome}</option>
-                            ))}
-                        </select>
-                        <input type="number" min="1" placeholder="Qtd" value={item.quantidade} onChange={(e) => handleItemChange(index, 'quantidade', e.target.value)} />
-                        {/* Preços de referência (não editáveis) */}
-                        <div className="price-ref">
-                            <span>Custo U$: {item.productDetails ? Number(item.productDetails.preco_dolar).toFixed(2) : '0.00'}</span>
-                            <span>Custo R$: {item.productDetails ? Number(item.productDetails.preco_real_custo).toFixed(2) : '0.00'}</span>
+                {orderItems.map((item, index) => {
+                    const totalCostUSD = item.productDetails 
+                        ? (Number(item.productDetails.preco_dolar) * (Number(item.quantidade) || 0)).toFixed(2) 
+                        : '0.00';
+                    
+                    const totalCostBRL = item.productDetails 
+                        ? (Number(item.productDetails.preco_real_custo) * (Number(item.quantidade) || 0)).toFixed(2)
+                        : '0.00';
+
+                    return (
+                        <div key={item.id} className="product-input-row">
+                            <select 
+                                value={item.produto_id} 
+                                onChange={(e) => handleItemChange(index, 'produto_id', e.target.value)}
+                                className="product-select"
+                            >
+                                <option value="">{loading ? "Carregando..." : "Selecione um produto"}</option>
+                                {availableProducts.map(p => (
+                                    <option key={p.id} value={p.id}>{p.nome}</option>
+                                ))}
+                            </select>
+                            <input type="number" min="1" placeholder="Qtd" value={item.quantidade} onChange={(e) => handleItemChange(index, 'quantidade', e.target.value)} />
+                            <div className="price-ref">
+                                <span>Custo U$: {totalCostUSD}</span>
+                                <span>Custo R$: {totalCostBRL}</span>
+                            </div>
+                            <input type="text" placeholder="Preço Venda (R$)" value={item.preco_venda_unitario} onChange={(e) => handleItemChange(index, 'preco_venda_unitario', e.target.value)} />
                         </div>
-                        <input type="text" placeholder="Preço Venda (R$)" value={item.preco_venda_unitario} onChange={(e) => handleItemChange(index, 'preco_venda_unitario', e.target.value)} />
-                    </div>
-                ))}
+                    );
+                })}
             </div>
             
             <button type="button" className="add-product-btn" onClick={handleAddRow}>

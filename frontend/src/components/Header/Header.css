@@ -1,10 +1,10 @@
 /* src/components/Header/Header.css */
 .app-header {
-  grid-area: header; /* Para o layout principal */
+  grid-area: header;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 24px;
+  padding: 0 32px; /* Aumentei um pouco o padding lateral para mais respiro */
   background-color: var(--white);
   border-bottom: 1px solid var(--border-color);
   height: 70px;
@@ -16,8 +16,9 @@
 }
 
 .header-logo {
-  height: 40px;
-  width: 40px;
+  height: 45px; /* Aumentei um pouco a altura para mais destaque */
+  /* REMOVIDO: width: 40px; (Isso estava achatando a logo) */
+  object-fit: contain; /* ADICIONADO: Garante que a imagem mantenha sua proporção */
   margin-right: 16px;
 }
 
@@ -29,7 +30,7 @@
 
 .header-nav {
   display: flex;
-  gap: 24px;
+  gap: 32px; /* Aumentei o espaçamento entre os links */
 }
 
 .nav-link {
@@ -45,6 +46,7 @@
   color: var(--primary-color);
 }
 
+/* Esta classe agora será aplicada AUTOMATICAMENTE pelo NavLink */
 .nav-link.active {
   color: var(--primary-color);
   border-bottom-color: var(--primary-color);

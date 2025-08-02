@@ -1,26 +1,36 @@
 /* src/components/StatusPill/StatusPill.css */
+
 .status-pill {
   padding: 4px 12px;
-  border-radius: 16px;
+  border-radius: 16px; /* Bordas bem arredondadas para o formato de pílula */
   font-size: 0.8rem;
   font-weight: 500;
   text-align: center;
+  border: 1px solid transparent; /* Adiciona uma borda para consistência */
+  transition: all 0.2s ease-in-out;
 }
 
-/* Verde */
+/* Estilo para pílulas clicáveis */
+.status-pill.clickable:hover {
+  cursor: pointer;
+  opacity: 0.85;
+  transform: scale(1.05);
+}
+
+.status-pill:disabled {
+  cursor: default;
+}
+
+/* Verde para status positivos: Pago, Entregue, Em Dia */
 .pill-success {
-  background-color: #D1FAE5;
-  color: #065F46;
+  background-color: #D1FAE5; /* Fundo verde bem claro */
+  color: #065F46; /* Texto verde escuro */
+  border-color: #A7F3D0; /* Borda verde um pouco mais forte */
 }
 
-/* Roxo claro */
-.pill-info {
-  background-color: #E0E7FF;
-  color: #3730A3;
-}
-
-/* Cinza */
-.pill-default {
-  background-color: #F3F4F6;
-  color: #4B5563;
+/* Roxo/Lavanda para status de informação/aviso: Não Pago, Não Entregue, Em Atraso */
+.pill-info, .pill-default {
+  background-color: #E0E7FF; /* Fundo lavanda claro */
+  color: #3730A3; /* Texto roxo escuro */
+  border-color: #C7D2FE; /* Borda lavanda um pouco mais forte */
 }

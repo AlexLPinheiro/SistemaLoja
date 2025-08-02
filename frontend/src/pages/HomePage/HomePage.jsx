@@ -1,22 +1,23 @@
 // frontend/src/pages/HomePage/HomePage.jsx
-import React, { useState, useEffect } from 'react'; // Importe useState e useEffect
+import React, { useState, useEffect } from 'react';
 import DashboardCard from '../../components/DashboardCard/DashboardCard';
-import api from '../../services/api'; // Importe nosso cliente de API
+import api from '../../services/api';
 import './HomePage.css';
 
-// Uma função helper para formatar os números como moeda
 const formatCurrency = (value) => {
-  if (typeof value !== 'number') return 'R$0,00';
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  if (typeof value !== 'number' && typeof value !== 'string') return 'R$ 0,00';
+  return Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 const HomePage = () => {
-  // Estado para armazenar os dados do dashboard
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // useEffect para buscar os dados quando o componente montar
+  // --- OBTENDO E FORMATANDO A DATA ATUAL ---
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString('pt-BR'); // Formata para "dd/mm/aaaa"
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -31,18 +32,18 @@ const HomePage = () => {
     };
 
     fetchDashboardData();
-  }, []); // O array vazio [] garante que isso rode apenas uma vez
+  }, []);
 
   if (loading) {
-    return <main className="home-page-content"><div>Carregando...</div></main>;
+    return <main className="main-content"><div>Carregando...</div></main>;
   }
 
   if (error) {
-    return <main className="home-page-content"><div>{error}</div></main>;
+    return <main className="main-content"><div>{error}</div></main>;
   }
 
   return (
-    <main className="home-page-content">
+    <main className="main-content">
       <div className="info-pill">
         <strong>Dados da viagem:</strong> Dados da viagem de 03/08/2025
       </div>
@@ -60,7 +61,8 @@ const HomePage = () => {
         />
         <DashboardCard
           title="Cotação do dólar do dia:"
-          subtitle="Cotação do dia 27/07/2025"
+          // --- USANDO A DATA DINÂMICA ---
+          subtitle={`Cotação do dia ${formattedDate}`}
           value={formatCurrency(dashboardData.cotacao_dolar_dia)}
         />
         <DashboardCard

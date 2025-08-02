@@ -2,6 +2,7 @@
 from django.db import models
 from django.db.models import Sum, F, ExpressionWrapper, DecimalField
 from decimal import Decimal
+from django.db.models.fields import DecimalField
 
 # Cotação do dólar (simplificada). Em um projeto real, isso viria de uma API externa.
 COTACAO_DOLAR = Decimal('5.30') 
@@ -39,12 +40,12 @@ class Cliente(models.Model):
     @property
     def total_gasto(self):
         # Soma o subtotal de todos os pedidos FECHADOS do cliente
-        total = self.pedidos.filter(
-            status_entrega='entregue', 
-            status_pagamento__in=['pago', 'em_dia']
-        ).aggregate(
-            total=Sum(F('itens__preco_venda_unitario') * F('itens__quantidade'))
-        )['total']
+        total = self.pedidos.aggregate(
+        total_geral=Sum(
+            F('itens__preco_venda_unitario') * F('itens__quantidade'),
+            output_field=DecimalField()
+        )
+    )['total_geral']
         return total or Decimal('0.00')
 
     def __str__(self):
@@ -92,11 +93,17 @@ class Pedido(models.Model):
         return lucro or Decimal('0.00')
 
 class PedidoProduto(models.Model):
-    """ Tabela 'through' para armazenar detalhes do produto DENTRO de um pedido específico """
     pedido = models.ForeignKey(Pedido, related_name='itens', on_delete=models.CASCADE)
     produto = models.ForeignKey(Produto, related_name='itens_pedido', on_delete=models.CASCADE)
     quantidade = models.IntegerField(default=1)
     preco_venda_unitario = models.DecimalField(max_digits=10, decimal_places=2, help_text="Preço em R$ que o produto foi vendido neste pedido")
+
+    @property
+    def lucro_item(self):
+
+        custo_total_item = self.produto.preco_real_custo * self.quantidade
+        venda_total_item = self.preco_venda_unitario * self.quantidade
+        return venda_total_item - custo_total_item
 
     class Meta:
         unique_together = ('pedido', 'produto')

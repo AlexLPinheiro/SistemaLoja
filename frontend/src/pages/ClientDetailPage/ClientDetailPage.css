@@ -1,24 +1,42 @@
 /* src/pages/ClientDetailPage/ClientDetailPage.css */
-.client-detail-page {
-  padding: 24px 32px;
+
+/* Estilo para os títulos das seções, como "Informações do cliente:" */
+.section-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px; /* Mantém a margem para títulos que estão sozinhos */
 }
 
-.section-title {
-  font-size: 1.1rem;
-  font-weight: 600;
+/* O cabeçalho da seção "Pedidos:", que contém o título e o botão */
+.page-header {
+  display: flex;
+  justify-content: flex-start; 
+  align-items: center;
+  gap: 16px; 
+  margin-top: 32px;
   margin-bottom: 16px;
 }
 
+/* MUDANÇA 3: Regra específica para remover a margem do título DENTRO do page-header */
+.page-header .section-title {
+  margin-bottom: 0;
+}
+
+
+/* --- O RESTO DO ARQUIVO PERMANECE IGUAL --- */
+
+
+/* Card de informações do cliente */
 .client-info-card {
   display: grid;
-  grid-template-columns: 2fr 1fr 2fr 1fr auto;
+  grid-template-columns: 2fr 1.5fr 3fr 1.5fr auto;
   align-items: center;
   gap: 20px;
   background-color: var(--white);
-  padding: 16px;
+  padding: 20px 24px;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  margin-bottom: 32px;
+  border-radius: 12px;
 }
 
 .client-info-card div {
@@ -37,6 +55,7 @@
   justify-self: end;
 }
 
+/* Botão de edição (lápis) */
 .edit-btn {
   background: var(--bg-color);
   border: 1px solid var(--border-color);
@@ -51,7 +70,7 @@
   color: var(--text-secondary);
 }
 
-/* Estilos da tabela de pedidos aninhada */
+/* --- Tabela de produtos aninhada --- */
 .order-group {
   border-bottom: 1px solid var(--border-color);
 }
@@ -73,15 +92,25 @@
 }
 .products-table {
   width: 100%;
+  border-collapse: collapse;
 }
 .products-table td {
-  padding: 8px 0;
+  padding: 10px 0;
   border: none;
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
+.products-table thead th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
 
-/* Estilos para os inputs que aparecem no modo de edição */
+
+/* --- Estilos para o modo de edição --- */
 .info-card-input {
   width: 100%;
   padding: 6px 8px;
@@ -91,13 +120,11 @@
   background-color: #fcfcfd;
 }
 
-/* Contêiner para os botões Salvar/Cancelar */
 .edit-actions {
   display: flex;
   gap: 8px;
 }
 
-/* Estilo base para os pequenos botões de ação (Salvar/Cancelar) */
 .action-btn {
   width: 40px;
   height: 40px;
@@ -116,19 +143,17 @@
   cursor: not-allowed;
 }
 
-/* Cor específica para o botão Salvar */
 .save-btn {
-  background-color: #D1FAE5; /* Verde claro */
-  color: #065F46; /* Verde escuro */
+  background-color: #D1FAE5;
+  color: #065F46;
 }
 .save-btn:hover:not(:disabled) {
   background-color: #A7F3D0;
 }
 
-/* Cor específica para o botão Cancelar */
 .cancel-btn {
-  background-color: #FEE2E2; /* Vermelho claro */
-  color: #991B1B; /* Vermelho escuro */
+  background-color: #FEE2E2;
+  color: #991B1B;
 }
 .cancel-btn:hover:not(:disabled) {
   background-color: #FECACA;

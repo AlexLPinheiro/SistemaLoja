@@ -23,9 +23,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-$q(q@l$#^j-!@f@^=^^_c3j7quy$(oy=2beo%ruu1io*xqdgan'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['AlexPinheiro.pythonanywhere.com', '127.0.0.1']
 
 
 # Application definition
@@ -128,6 +128,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173", # Porta padrão do Vite/React
+    "https://AlexLPinheiro.github.io",
+    "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]

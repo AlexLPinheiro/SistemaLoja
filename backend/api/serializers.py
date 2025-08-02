@@ -33,7 +33,7 @@ class ProdutoSerializer(serializers.ModelSerializer):
         produto = Produto.objects.create(categoria=categoria_instance, **validated_data)
         return produto
 
-# --- NOVOS SERIALIZERS PARA CRIAÇÃO DE PEDIDOS ---
+# --- SERIALIZERS PARA CRIAÇÃO DE PEDIDOS ---
 
 class PedidoProdutoCreateSerializer(serializers.ModelSerializer):
     """ Serializer para um item de pedido DURANTE A CRIAÇÃO (POST) """
@@ -51,33 +51,34 @@ class PedidoCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Pedido
         fields = [
-            'cliente_id', 'metodo_pagamento', 'quantidade_parcelas', 
-            'dia_vencimento_parcela', 'status_pagamento', 'itens'
+            'cliente_id',
+            'metodo_pagamento', 
+            'quantidade_parcelas', 
+            'dia_vencimento_parcela', 
+            'status_pagamento', 
+            'itens'
         ]
 
     def create(self, validated_data):
-        # Separa os dados dos itens e do cliente dos dados principais do pedido
         itens_data = validated_data.pop('itens')
-        cliente_id = validated_data.pop('cliente_id') # Agora ele está aqui!
-
+        cliente_id = validated_data.pop('cliente_id')
+        
         try:
             cliente_instance = Cliente.objects.get(id=cliente_id)
         except Cliente.DoesNotExist:
             raise serializers.ValidationError({"cliente_id": f"Cliente com ID {cliente_id} não encontrado."})
-
+        
         pedido = Pedido.objects.create(cliente=cliente_instance, **validated_data)
-
+        
         for item_data in itens_data:
             produto_id = item_data.pop('produto_id')
             try:
                 produto_instance = Produto.objects.get(id=produto_id)
                 PedidoProduto.objects.create(pedido=pedido, produto=produto_instance, **item_data)
             except Produto.DoesNotExist:
-        # Ignora silenciosamente um item se o produto não for encontrado,
-        # ou você pode levantar um erro aqui se preferir.
                 print(f"Produto com ID {produto_id} não encontrado. Item ignorado.")
-            continue
-
+                continue
+            
         return pedido
 
 # --- SERIALIZERS PARA LEITURA DE PEDIDOS E CLIENTES ---
@@ -85,10 +86,11 @@ class PedidoCreateSerializer(serializers.ModelSerializer):
 class PedidoProdutoSerializer(serializers.ModelSerializer):
     """ Serializer para LER (GET) os itens de um pedido """
     produto = ProdutoSerializer(read_only=True)
+    lucro_item = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = PedidoProduto
-        fields = ['id', 'produto', 'quantidade', 'preco_venda_unitario']
+        fields = ['id', 'produto', 'quantidade', 'preco_venda_unitario', 'lucro_item']
 
 class PedidoSerializer(serializers.ModelSerializer):
     """ Serializer para LER (GET) um pedido """
@@ -96,7 +98,7 @@ class PedidoSerializer(serializers.ModelSerializer):
     status_pedido = serializers.CharField(read_only=True)
     subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     lucro_final = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-    cliente = serializers.CharField(source='cliente.nome_completo', read_only=True) # Adicionado para a lista geral de vendas
+    cliente = serializers.CharField(source='cliente.nome_completo', read_only=True)
 
     class Meta:
         model = Pedido
