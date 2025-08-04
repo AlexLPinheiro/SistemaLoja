@@ -36,3 +36,42 @@
   transform: translateY(-50%);
   color: var(--text-secondary);
 }
+
+/* Container para os botões de ação na tabela */
+.action-buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: center; /* Centraliza os botões na célula */
+}
+
+/* Estilo base para os botões de ação */
+.action-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+/* Botão de Editar */
+.action-btn.edit-btn {
+  background-color: #E0E7FF; /* Lavanda claro */
+  color: #3730A3; /* Roxo escuro */
+}
+.action-btn.edit-btn:hover {
+  background-color: #C7D2FE;
+}
+
+/* Botão de Apagar */
+.action-btn.delete-btn {
+  background-color: #FEE2E2; /* Vermelho claro */
+  color: #B91C1C; /* Vermelho escuro */
+}
+.action-btn.delete-btn:hover {
+  background-color: #FECACA;
+}

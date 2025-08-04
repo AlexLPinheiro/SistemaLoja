@@ -158,3 +158,14 @@
 .cancel-btn:hover:not(:disabled) {
   background-color: #FECACA;
 }
+
+/* Adicione este estilo para o botão de apagar */
+
+.delete-btn {
+  background-color: #FEE2E2; /* Vermelho claro */
+  color: #B91C1C; /* Vermelho escuro */
+}
+.delete-btn:hover:not(:disabled) {
+  background-color: #FECACA; /* Vermelho um pouco mais forte no hover */
+  color: #991B1B;
+}

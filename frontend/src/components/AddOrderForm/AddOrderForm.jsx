@@ -6,9 +6,10 @@ import './AddOrderForm.css';
 const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
     // Estado para os dados principais do pedido
     const [metodoPagamento, setMetodoPagamento] = useState('a_vista');
-    const [quantidadeParcelas, setQuantidadeParcelas] = useState(1);
-    
-    // Estado para os itens do pedido
+    const [quantidadeParcelas, setQuantidadeParcelas] = useState(2); // Inicia com 2 para ser válido
+    const [valorServico, setValorServico] = useState(''); // Estado para o valor do serviço
+
+    // Estado para os itens do pedido (produtos)
     const [orderItems, setOrderItems] = useState([
         { id: Date.now(), produto_id: '', quantidade: 1, preco_venda_unitario: '', productDetails: null }
     ]);
@@ -52,19 +53,24 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
         setOrderItems(updatedItems);
     };
 
+    // Lida com o envio do formulário
     const handleSubmit = async (e) => {
         e.preventDefault();
         
+        // Monta o payload (dados a serem enviados) para a API
         const payload = {
             cliente_id: clientId,
             metodo_pagamento: metodoPagamento,
-            quantidade_parcelas: metodoPagamento === 'parcelado' ? quantidadeParcelas : 1,
+            quantidade_parcelas: metodoPagamento === 'parcelado' ? parseInt(quantidadeParcelas, 10) : 1,
             status_pagamento: 'nao_pago',
-            itens: orderItems.map(item => ({
-                produto_id: parseInt(item.produto_id, 10),
-                quantidade: parseInt(item.quantidade, 10),
-                preco_venda_unitario: parseFloat(item.preco_venda_unitario).toFixed(2)
-            })).filter(item => item.produto_id && !isNaN(item.produto_id))
+            valor_servico: parseFloat(valorServico) || 0.00, // Envia o valor do serviço
+            itens: orderItems
+                .map(item => ({
+                    produto_id: parseInt(item.produto_id, 10),
+                    quantidade: parseInt(item.quantidade, 10),
+                    preco_venda_unitario: parseFloat(item.preco_venda_unitario).toFixed(2)
+                }))
+                .filter(item => item.produto_id && !isNaN(item.produto_id)) // Filtra linhas vazias ou inválidas
         };
         
         if (payload.itens.length === 0) {
@@ -76,11 +82,11 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
             await api.post('/pedidos/', payload);
             alert("Pedido adicionado com sucesso!");
             if (onOrderAdded) {
-                onOrderAdded();
+                onOrderAdded(); // Avisa a página pai para atualizar
             }
         } catch (error) {
             console.error("Erro ao criar pedido:", error.response?.data);
-            alert("Falha ao criar o pedido.");
+            alert("Falha ao criar o pedido. Verifique o console para mais detalhes.");
         }
     };
 
@@ -105,6 +111,15 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
                         />
                     </div>
                 )}
+                <div className="form-group">
+                    <label>Valor do Serviço (R$)</label>
+                    <input 
+                        type="text" 
+                        placeholder="0.00"
+                        value={valorServico}
+                        onChange={(e) => setValorServico(e.target.value)}
+                    />
+                </div>
             </div>
 
             <div className="products-section">

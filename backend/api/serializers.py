@@ -56,6 +56,7 @@ class PedidoCreateSerializer(serializers.ModelSerializer):
             'quantidade_parcelas', 
             'dia_vencimento_parcela', 
             'status_pagamento', 
+            'valor_servico', # Adicionado aqui
             'itens'
         ]
 
@@ -105,7 +106,9 @@ class PedidoSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'cliente', 'data_pedido', 'metodo_pagamento', 'quantidade_parcelas',
             'dia_vencimento_parcela', 'status_pagamento', 'status_entrega', 
-            'status_pedido', 'subtotal', 'lucro_final', 'itens'
+            'status_pedido', 'subtotal', 
+            'valor_servico', # Adicionado aqui
+            'lucro_final', 'itens'
         ]
 
 class ClienteListSerializer(serializers.ModelSerializer):

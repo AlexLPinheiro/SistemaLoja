@@ -17,17 +17,16 @@ class Produto(models.Model):
 
     @property
     def preco_real_custo(self):
-        # 1. Encargos de conversão e taxas
+        # Encargos de conversão e taxas
         ENCARGO_PERCENTUAL = Decimal('0.035')
         TAXA_CONVERSAO_PERCENTUAL = Decimal('0.019')
         FATOR_AJUSTE_CAMBIO = 1 + ENCARGO_PERCENTUAL + TAXA_CONVERSAO_PERCENTUAL
         
-        # --- ADICIONADO: TAXA DA FLORIDA ---
+        # Taxa da Florida
         TAXA_FLORIDA_PERCENTUAL = Decimal('0.065') # 6.5%
         FATOR_FLORIDA = 1 + TAXA_FLORIDA_PERCENTUAL
-        # ------------------------------------
         
-        # Usamos uma cotação base fixa para os cálculos internos dos modelos
+        # Cotação base fixa para os cálculos internos dos modelos
         cotacao_comercial_base = Decimal('5.30')
         cotacao_ajustada = (cotacao_comercial_base * FATOR_AJUSTE_CAMBIO).quantize(Decimal('0.01'))
         
@@ -76,6 +75,10 @@ class Pedido(models.Model):
     dia_vencimento_parcela = models.IntegerField(null=True, blank=True, help_text="Dia do mês para vencimento das parcelas")
     status_pagamento = models.CharField(max_length=20, choices=STATUS_PAGAMENTO_CHOICES)
     status_entrega = models.CharField(max_length=20, choices=STATUS_ENTREGA_CHOICES, default='nao_entregue')
+    
+    # Novo campo para o valor do serviço
+    valor_servico = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Taxa de serviço adicional para o pedido")
+    
     produtos = models.ManyToManyField(Produto, through='PedidoProduto', related_name='pedidos')
 
     @property
@@ -93,8 +96,9 @@ class Pedido(models.Model):
     
     @property
     def lucro_final(self):
-        total_lucro = sum(item.lucro_item for item in self.itens.all())
-        return total_lucro
+        # O lucro total agora é a soma do lucro de todos os itens MAIS o valor do serviço.
+        lucro_dos_itens = sum(item.lucro_item for item in self.itens.all())
+        return lucro_dos_itens + self.valor_servico
 
 class PedidoProduto(models.Model):
     pedido = models.ForeignKey(Pedido, related_name='itens', on_delete=models.CASCADE)
@@ -104,6 +108,7 @@ class PedidoProduto(models.Model):
 
     @property
     def lucro_item(self):
+        # Este cálculo usa `self.produto.preco_real_custo`, que já tem todos os encargos embutidos.
         custo_total_item = self.produto.preco_real_custo * self.quantidade
         venda_total_item = self.preco_venda_unitario * self.quantidade
         return venda_total_item - custo_total_item

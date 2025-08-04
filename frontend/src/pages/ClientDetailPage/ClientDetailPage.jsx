@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { FaPencilAlt, FaPlus, FaSave, FaTimes } from 'react-icons/fa';
+import { FaPencilAlt, FaPlus, FaSave, FaTimes, FaTrash } from 'react-icons/fa';
 
 // Componentes e Serviços
 import Button from '../../components/Button/Button';
@@ -54,12 +54,12 @@ const ClientDetailPage = () => {
             });
 
             // Atualiza o estado local para refletir a mudança imediatamente
-            const updatedClientData = { ...client };
-            const orderIndex = updatedClientData.pedidos.findIndex(o => o.id === orderId);
-            if (orderIndex !== -1) {
-                updatedClientData.pedidos[orderIndex] = response.data;
-                setClient(updatedClientData);
-            }
+            setClient(prevClient => {
+                const updatedPedidos = prevClient.pedidos.map(order => 
+                    order.id === orderId ? response.data : order
+                );
+                return { ...prevClient, pedidos: updatedPedidos };
+            });
         } catch (error) {
             console.error("Erro ao atualizar status:", error.response?.data);
             alert("Falha ao atualizar o status do pedido.");
@@ -78,9 +78,10 @@ const ClientDetailPage = () => {
             const response = await api.put(`/clientes/${clientId}/`, editData);
             setClient(response.data);
             setIsEditing(false);
+            alert("Informações do cliente salvas com sucesso!");
         } catch (error) {
             console.error("Erro ao salvar alterações:", error.response?.data);
-            alert("Falha ao salvar. Verifique os dados.");
+            alert("Falha ao salvar. Verifique os dados e tente novamente.");
         } finally {
             setIsSubmitting(false);
         }
@@ -102,7 +103,25 @@ const ClientDetailPage = () => {
         setExpandedOrderId(prevId => (prevId === orderId ? null : orderId));
     };
 
-    // Funções para formatar os dados vindos da API
+    // Função para apagar um pedido
+    const handleDeleteOrder = async (orderId, e) => {
+        e.stopPropagation();
+        if (window.confirm('Tem certeza que deseja apagar este pedido? Esta ação não pode ser desfeita.')) {
+            try {
+                await api.delete(`/pedidos/${orderId}/`);
+                setClient(prevClient => ({
+                    ...prevClient,
+                    pedidos: prevClient.pedidos.filter(pedido => pedido.id !== orderId)
+                }));
+                alert('Pedido apagado com sucesso!');
+            } catch (error) {
+                console.error("Erro ao apagar pedido:", error.response?.data);
+                alert("Falha ao apagar o pedido.");
+            }
+        }
+    };
+
+    // Funções auxiliares para formatar dados para exibição
     const formatPaymentMethod = (method) => {
         if (method === 'a_vista') return 'À Vista';
         return method.charAt(0).toUpperCase() + method.slice(1);
@@ -117,18 +136,17 @@ const ClientDetailPage = () => {
         return translations[status] || status;
     };
 
-    // Função para determinar o estilo da pílula
     const getStatusPillType = (status) => {
         switch (status) {
             case 'pago':
             case 'entregue':
             case 'em_dia':
-                return 'success'; // Verde
+                return 'success';
             case 'nao_pago':
             case 'nao_entregue':
             case 'em_atraso':
             default:
-                return 'info'; // Roxo/Lavanda
+                return 'info';
         }
     };
 
@@ -159,7 +177,15 @@ const ClientDetailPage = () => {
                     <table className="data-table">
                         <thead>
                             <tr>
-                                <th>Data do pedido</th><th>Método de Pagamento</th><th>Parcelamento</th><th>Status do Pagamento</th><th>Status da Entrega</th><th>Subtotal</th><th>Lucro Total</th>
+                                <th>Data do pedido</th>
+                                <th>Método de Pagamento</th>
+                                <th>Parcelamento</th>
+                                <th>Status do Pagamento</th>
+                                <th>Status da Entrega</th>
+                                <th>Subtotal</th>
+                                <th>Valor Serviço</th>
+                                <th>Lucro Total</th>
+                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -172,11 +198,17 @@ const ClientDetailPage = () => {
                                         <td><StatusPill text={formatStatus(order.status_pagamento)} type={getStatusPillType(order.status_pagamento)} onClick={() => handleStatusUpdate(order.id, 'status_pagamento', order.status_pagamento === 'pago' ? 'nao_pago' : 'pago')}/></td>
                                         <td><StatusPill text={formatStatus(order.status_entrega)} type={getStatusPillType(order.status_entrega)} onClick={() => handleStatusUpdate(order.id, 'status_entrega', order.status_entrega === 'entregue' ? 'nao_entregue' : 'entregue')}/></td>
                                         <td>{Number(order.subtotal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                        <td>{Number(order.valor_servico).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                                         <td>{Number(order.lucro_final).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                        <td>
+                                            <button className="action-btn delete-btn" onClick={(e) => handleDeleteOrder(order.id, e)}>
+                                                <FaTrash />
+                                            </button>
+                                        </td>
                                     </tr>
                                     {expandedOrderId === order.id && order.itens.length > 0 && (
                                         <tr className="products-row">
-                                            <td colSpan="7">
+                                            <td colSpan="9">
                                                 <div className="products-table-container">
                                                     <h3 className="products-title">Produtos:</h3>
                                                     <table className="products-table">
