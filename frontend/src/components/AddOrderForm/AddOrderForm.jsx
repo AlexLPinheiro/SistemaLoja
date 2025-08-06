@@ -3,15 +3,8 @@ import Button from '../Button/Button';
 import api from '../../services/api';
 import './AddOrderForm.css';
 
-// Constantes para os encargos, replicadas do backend para consistência no cálculo de exibição
-const ENCARGO_PERCENTUAL = 0.035;
-const TAXA_CONVERSAO_PERCENTUAL = 0.019;
-const FATOR_AJUSTE_CAMBIO = 1 + ENCARGO_PERCENTUAL + TAXA_CONVERSAO_PERCENTUAL;
-const TAXA_FLORIDA_PERCENTUAL = 0.065;
-const FATOR_FLORIDA = 1 + TAXA_FLORIDA_PERCENTUAL;
-
 const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
-    // Estados para os dados principais do pedido
+    // Estado para os dados principais do pedido
     const [metodoPagamento, setMetodoPagamento] = useState('a_vista');
     const [quantidadeParcelas, setQuantidadeParcelas] = useState(2);
     const [valorServico, setValorServico] = useState('');
@@ -25,32 +18,19 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
     const [availableProducts, setAvailableProducts] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Estado para a cotação do dia
-    const [cotacaoDoDia, setCotacaoDoDia] = useState(null);
-
-    // Efeito para buscar dados iniciais (produtos e cotação do dia)
+    // Busca todos os produtos disponíveis quando o modal abre
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchProducts = async () => {
             try {
-                // Busca os produtos e a cotação em paralelo para mais performance
-                const [productsResponse, dashboardResponse] = await Promise.all([
-                    api.get('/produtos/'),
-                    api.get('/dashboard/')
-                ]);
-                
-                setAvailableProducts(productsResponse.data);
-                setCotacaoDoDia(dashboardResponse.data.cotacao_dolar_dia);
-
+                const response = await api.get('/produtos/');
+                setAvailableProducts(response.data);
             } catch (error) {
-                console.error("Erro ao buscar dados para o formulário:", error);
-                // Define uma cotação padrão em caso de falha para não quebrar o formulário
-                // Este valor deve ser a cotação ajustada
-                setCotacaoDoDia('5.80'); 
+                console.error("Erro ao buscar produtos:", error);
             } finally {
                 setLoading(false);
             }
         };
-        fetchData();
+        fetchProducts();
     }, []);
 
     // Adiciona uma nova linha de produto
@@ -105,7 +85,7 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
             }
         } catch (error) {
             console.error("Erro ao criar pedido:", error.response?.data);
-            alert(`Falha ao criar o pedido: ${error.response?.data[0] || 'Verifique os dados.'}`);
+            alert("Falha ao criar o pedido. Verifique o console para mais detalhes.");
         }
     };
 
@@ -143,18 +123,9 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
 
             <div className="products-section">
                 {orderItems.map((item, index) => {
-                    const productDetails = item.productDetails;
-                    let totalCostUSD = '0.00';
-                    let totalCostBRL = '0.00';
-
-                    if (productDetails && cotacaoDoDia) {
-                        const cotacao_comercial = Number(cotacaoDoDia) / FATOR_AJUSTE_CAMBIO;
-                        const custo_base_reais = Number(productDetails.preco_dolar) * cotacao_comercial;
-                        const custo_final_com_taxa = custo_base_reais * FATOR_FLORIDA;
-                        
-                        totalCostBRL = (custo_final_com_taxa * (Number(item.quantidade) || 0)).toFixed(2);
-                        totalCostUSD = (Number(productDetails.preco_dolar) * (Number(item.quantidade) || 0)).toFixed(2);
-                    }
+                    const totalCostBRL = item.productDetails 
+                        ? (Number(item.productDetails.preco_real_custo) * (Number(item.quantidade) || 0)).toFixed(2)
+                        : '0.00';
 
                     return (
                         <div key={item.id} className="product-input-row">
@@ -165,23 +136,12 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
                             >
                                 <option value="">{loading ? "Carregando..." : "Selecione um produto"}</option>
                                 {availableProducts.map(p => (
-                                    <option key={p.id} value={p.id} disabled={p.quantidade_estoque <= 0}>
-                                        {p.nome} {p.quantidade_estoque <= 0 ? "(Sem Estoque)" : `(${p.quantidade_estoque} em estoque)`}
-                                    </option>
+                                    <option key={p.id} value={p.id}>{p.nome}</option>
                                 ))}
                             </select>
-                            <input 
-                                type="number" 
-                                min="1" 
-                                max={productDetails?.quantidade_estoque} 
-                                placeholder="Qtd" 
-                                value={item.quantidade} 
-                                onChange={(e) => handleItemChange(index, 'quantidade', e.target.value)} 
-                                disabled={!item.produto_id || (productDetails && productDetails.quantidade_estoque <= 0)} 
-                            />
+                            <input type="number" min="1" placeholder="Qtd" value={item.quantidade} onChange={(e) => handleItemChange(index, 'quantidade', e.target.value)} />
                             <div className="price-ref">
-                                <span>Custo U$: {totalCostUSD}</span>
-                                <span>Custo R$: {totalCostBRL}</span>
+                                <span>Custo Total R$: {totalCostBRL}</span>
                             </div>
                             <input 
                                 type="text" 

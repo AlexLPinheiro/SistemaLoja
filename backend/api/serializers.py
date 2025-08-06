@@ -16,6 +16,8 @@ class ProdutoSerializer(serializers.ModelSerializer):
     quantidade_vendas = serializers.IntegerField(read_only=True)
     categoria = serializers.CharField(source='categoria.nome', read_only=True)
     categoria_id = serializers.IntegerField(write_only=True)
+    
+    # Campo para receber a quantidade a ser ADICIONADA ao estoque
     adicionar_estoque = serializers.IntegerField(write_only=True, required=False, default=0, min_value=0)
 
     class Meta:
@@ -24,8 +26,8 @@ class ProdutoSerializer(serializers.ModelSerializer):
             'id', 'nome', 'categoria', 'marca', 'preco_dolar', 
             'quantidade_vendas', 'quantidade_estoque', 
             'categoria_id', 'adicionar_estoque'
-            # REMOVA 'preco_real_custo' desta lista
         ]
+        # O campo 'quantidade_estoque' deve ser apenas para leitura na API de lista/detalhe
         read_only_fields = ['quantidade_estoque']
     
     def create(self, validated_data):
