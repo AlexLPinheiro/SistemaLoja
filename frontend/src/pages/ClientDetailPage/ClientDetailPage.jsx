@@ -52,8 +52,6 @@ const ClientDetailPage = () => {
             const response = await api.patch(`/pedidos/${orderId}/atualizar-status/`, {
                 [field]: newValue
             });
-
-            // Atualiza o estado local para refletir a mudança imediatamente
             setClient(prevClient => {
                 const updatedPedidos = prevClient.pedidos.map(order => 
                     order.id === orderId ? response.data : order
@@ -121,7 +119,17 @@ const ClientDetailPage = () => {
         }
     };
 
-    // Funções auxiliares para formatar dados para exibição
+    // Funções auxiliares para formatar dados
+    const formatCurrency = (value) => {
+        if (isNaN(value) || value === null) return 'R$ 0,00';
+        return Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    };
+
+    const formatUSD = (value) => {
+        if (isNaN(value) || value === null) return '$ 0.00';
+        return Number(value).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    };
+
     const formatPaymentMethod = (method) => {
         if (method === 'a_vista') return 'À Vista';
         return method.charAt(0).toUpperCase() + method.slice(1);
@@ -142,9 +150,6 @@ const ClientDetailPage = () => {
             case 'entregue':
             case 'em_dia':
                 return 'success';
-            case 'nao_pago':
-            case 'nao_entregue':
-            case 'em_atraso':
             default:
                 return 'info';
         }
@@ -167,7 +172,7 @@ const ClientDetailPage = () => {
                     <div><strong>Cliente:</strong>{isEditing ? <input type="text" name="nome_completo" value={editData.nome_completo} onChange={handleInputChange} className="info-card-input" disabled={isSubmitting}/> : <span>{client.nome_completo}</span>}</div>
                     <div><strong>N° Telefone:</strong>{isEditing ? <input type="text" name="telefone" value={editData.telefone} onChange={handleInputChange} className="info-card-input" disabled={isSubmitting}/> : <span>{client.telefone}</span>}</div>
                     <div><strong>Endereço:</strong>{isEditing ? <input type="text" name="endereco" value={editData.endereco} onChange={handleInputChange} className="info-card-input" disabled={isSubmitting}/> : <span>{client.endereco}</span>}</div>
-                    <div><strong>Total gasto:</strong><span>{Number(client.total_gasto).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                    <div><strong>Total gasto:</strong><span>{formatCurrency(client.total_gasto)}</span></div>
                     <div className="actions">{isEditing ? (<div className="edit-actions"><button onClick={handleSave} className="action-btn save-btn" disabled={isSubmitting}>{isSubmitting ? '...' : <FaSave />}</button><button onClick={handleCancel} className="action-btn cancel-btn" disabled={isSubmitting}><FaTimes /></button></div>) : (<button onClick={() => setIsEditing(true)} className="edit-btn"><FaPencilAlt /></button>)}</div>
                 </div>
 
@@ -182,8 +187,9 @@ const ClientDetailPage = () => {
                                 <th>Parcelamento</th>
                                 <th>Status do Pagamento</th>
                                 <th>Status da Entrega</th>
-                                <th>Subtotal</th>
+                                <th>Subtotal Itens</th>
                                 <th>Valor Serviço</th>
+                                <th>Valor Total</th>
                                 <th>Lucro Total</th>
                                 <th>Ações</th>
                             </tr>
@@ -197,9 +203,10 @@ const ClientDetailPage = () => {
                                         <td>{order.quantidade_parcelas}x</td>
                                         <td><StatusPill text={formatStatus(order.status_pagamento)} type={getStatusPillType(order.status_pagamento)} onClick={() => handleStatusUpdate(order.id, 'status_pagamento', order.status_pagamento === 'pago' ? 'nao_pago' : 'pago')}/></td>
                                         <td><StatusPill text={formatStatus(order.status_entrega)} type={getStatusPillType(order.status_entrega)} onClick={() => handleStatusUpdate(order.id, 'status_entrega', order.status_entrega === 'entregue' ? 'nao_entregue' : 'entregue')}/></td>
-                                        <td>{Number(order.subtotal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                                        <td>{Number(order.valor_servico).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                                        <td>{Number(order.lucro_final).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                        <td>{formatCurrency(order.subtotal_itens)}</td>
+                                        <td>{formatCurrency(order.valor_servico)}</td>
+                                        <td>{formatCurrency(order.valor_total_venda)}</td>
+                                        <td>{formatCurrency(order.lucro_final)}</td>
                                         <td>
                                             <button className="action-btn delete-btn" onClick={(e) => handleDeleteOrder(order.id, e)}>
                                                 <FaTrash />
@@ -208,18 +215,22 @@ const ClientDetailPage = () => {
                                     </tr>
                                     {expandedOrderId === order.id && order.itens.length > 0 && (
                                         <tr className="products-row">
-                                            <td colSpan="9">
+                                            <td colSpan="10">
                                                 <div className="products-table-container">
                                                     <h3 className="products-title">Produtos:</h3>
                                                     <table className="products-table">
-                                                        <thead><tr><th>Qtd</th><th>Nome</th><th>Marca</th><th>Categoria</th><th>Preço Custo (R$)</th><th>Preço Venda (R$)</th><th>Lucro (R$)</th></tr></thead>
+                                                        <thead><tr><th>Qtd</th><th>Nome</th><th>Marca</th><th>Custo (U$)</th><th>Custo (R$)</th><th>Valor Adicionado (R$)</th><th>Lucro (U$)</th><th>Lucro (R$)</th></tr></thead>
                                                         <tbody>
                                                             {order.itens.map(item => (
                                                                 <tr key={item.id}>
-                                                                    <td>{item.quantidade}x</td><td>{item.produto.nome}</td><td>{item.produto.marca}</td><td>{item.produto.categoria}</td>
-                                                                    <td>{Number(item.produto.preco_real_custo).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                                                                    <td>{Number(item.preco_venda_unitario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
-                                                                    <td>{Number(item.lucro_item).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                                                    <td>{item.quantidade}x</td>
+                                                                    <td>{item.produto.nome}</td>
+                                                                    <td>{item.produto.marca}</td>
+                                                                    <td>{formatUSD(item.custo_dolar_item_total)}</td>
+                                                                    <td>{formatCurrency(item.custo_real_item_unidade * item.quantidade)}</td>
+                                                                    <td>{formatCurrency(item.margem_venda_unitaria * item.quantidade)}</td>
+                                                                    <td>{formatUSD(item.lucro_dolar_item_total)}</td>
+                                                                    <td>{formatCurrency(item.lucro_item)}</td>
                                                                 </tr>
                                                             ))}
                                                         </tbody>
@@ -235,7 +246,6 @@ const ClientDetailPage = () => {
                 </div>
             </main>
 
-            {/* Modal de Adicionar Pedido */}
             <Modal isOpen={isOrderModalOpen} onClose={() => setIsOrderModalOpen(false)} title="Formulário para adicionar pedido">
                 <AddOrderForm 
                     onClose={() => setIsOrderModalOpen(false)} 

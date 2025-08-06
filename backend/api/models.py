@@ -11,36 +11,16 @@ class Categoria(models.Model):
 
 class Produto(models.Model):
     nome = models.CharField(max_length=200)
-    categoria = models.ForeignKey(Categoria, related_name='produtos', on_delete=models.SET_NULL, null=True)
+    categoria = models.ForeignKey('Categoria', related_name='produtos', on_delete=models.SET_NULL, null=True)
     marca = models.CharField(max_length=100)
     preco_dolar = models.DecimalField(max_digits=10, decimal_places=2, help_text="Preço de custo em Dólar (U$)")
-
-    @property
-    def preco_real_custo(self):
-        # Encargos de conversão e taxas
-        ENCARGO_PERCENTUAL = Decimal('0.035')
-        TAXA_CONVERSAO_PERCENTUAL = Decimal('0.019')
-        FATOR_AJUSTE_CAMBIO = 1 + ENCARGO_PERCENTUAL + TAXA_CONVERSAO_PERCENTUAL
-        
-        # Taxa da Florida
-        TAXA_FLORIDA_PERCENTUAL = Decimal('0.065') # 6.5%
-        FATOR_FLORIDA = 1 + TAXA_FLORIDA_PERCENTUAL
-        
-        # Cotação base fixa para os cálculos internos dos modelos
-        cotacao_comercial_base = Decimal('5.30')
-        cotacao_ajustada = (cotacao_comercial_base * FATOR_AJUSTE_CAMBIO).quantize(Decimal('0.01'))
-        
-        # Calcula o custo base em reais (dólar * câmbio ajustado)
-        custo_base_reais = self.preco_dolar * cotacao_ajustada
-        
-        # Aplica a taxa da Florida sobre o custo base
-        custo_final_com_taxa = custo_base_reais * FATOR_FLORIDA
-        
-        return custo_final_com_taxa.quantize(Decimal('0.01'))
+    quantidade_estoque = models.IntegerField(default=0, help_text="Quantidade disponível em estoque")
 
     @property
     def quantidade_vendas(self):
-        return self.itens_pedido.aggregate(total_vendido=Sum('quantidade'))['total_vendido'] or 0
+        # Calcula o total de unidades vendidas deste produto em todos os pedidos
+        total_vendido = self.itens_pedido.aggregate(total=Sum('quantidade'))['total']
+        return total_vendido or 0
 
     def __str__(self):
         return self.nome
@@ -52,12 +32,8 @@ class Cliente(models.Model):
 
     @property
     def total_gasto(self):
-        total = self.pedidos.aggregate(
-            total_geral=Sum(
-                F('itens__preco_venda_unitario') * F('itens__quantidade'),
-                output_field=DecimalField()
-            )
-        )['total_geral']
+        """ Calcula o valor total que o cliente pagou em todos os pedidos. """
+        total = sum(pedido.valor_total_venda for pedido in self.pedidos.all())
         return total or Decimal('0.00')
 
     def __str__(self):
@@ -75,10 +51,7 @@ class Pedido(models.Model):
     dia_vencimento_parcela = models.IntegerField(null=True, blank=True, help_text="Dia do mês para vencimento das parcelas")
     status_pagamento = models.CharField(max_length=20, choices=STATUS_PAGAMENTO_CHOICES)
     status_entrega = models.CharField(max_length=20, choices=STATUS_ENTREGA_CHOICES, default='nao_entregue')
-    
-    # Novo campo para o valor do serviço
     valor_servico = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Taxa de serviço adicional para o pedido")
-    
     produtos = models.ManyToManyField(Produto, through='PedidoProduto', related_name='pedidos')
 
     @property
@@ -89,29 +62,58 @@ class Pedido(models.Model):
         return 'em_aberto'
 
     @property
-    def subtotal(self):
-        return self.itens.aggregate(
-            subtotal=Sum(F('preco_venda_unitario') * F('quantidade'))
-        )['subtotal'] or Decimal('0.00')
+    def subtotal_itens(self):
+        """ Soma do (custo + margem) * quantidade de cada item. """
+        return sum(item.subtotal_item for item in self.itens.all())
+
+    @property
+    def valor_total_venda(self):
+        """ O valor final que o cliente paga (subtotal dos itens + taxa de serviço). """
+        return self.subtotal_itens + self.valor_servico
     
     @property
     def lucro_final(self):
-        # O lucro total agora é a soma do lucro de todos os itens MAIS o valor do serviço.
+        """ Soma da (margem * quantidade) de cada item + valor de serviço. """
         lucro_dos_itens = sum(item.lucro_item for item in self.itens.all())
         return lucro_dos_itens + self.valor_servico
 
 class PedidoProduto(models.Model):
-    pedido = models.ForeignKey(Pedido, related_name='itens', on_delete=models.CASCADE)
+    pedido = models.ForeignKey('Pedido', related_name='itens', on_delete=models.CASCADE)
     produto = models.ForeignKey(Produto, related_name='itens_pedido', on_delete=models.CASCADE)
     quantidade = models.IntegerField(default=1)
-    preco_venda_unitario = models.DecimalField(max_digits=10, decimal_places=2, help_text="Preço em R$ que o produto foi vendido neste pedido")
+    margem_venda_unitaria = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Valor adicionado ao custo do produto (lucro por unidade)")
+    
+    # Campo para "congelar" o custo do produto no momento da compra
+    custo_real_item_unidade = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    @property
+    def subtotal_item(self):
+        """ O preço final de venda desta linha de produto (custo histórico + margem) * qtd. """
+        custo_historico = self.custo_real_item_unidade or Decimal('0.00')
+        preco_final_unitario = custo_historico + self.margem_venda_unitaria
+        return preco_final_unitario * self.quantidade
 
     @property
     def lucro_item(self):
-        # Este cálculo usa `self.produto.preco_real_custo`, que já tem todos os encargos embutidos.
-        custo_total_item = self.produto.preco_real_custo * self.quantidade
-        venda_total_item = self.preco_venda_unitario * self.quantidade
-        return venda_total_item - custo_total_item
+        """ O lucro desta linha de produto é a margem * qtd. """
+        return self.margem_venda_unitaria * self.quantidade
+
+    @property
+    def custo_dolar_item_total(self):
+        """ Custo total em dólar para esta linha de produto (preço * qtd). """
+        return self.produto.preco_dolar * self.quantidade
+
+    @property
+    def lucro_dolar_item_total(self):
+        """ 
+        Calcula o lucro em dólar. Converte a margem em reais de volta para
+        dólar usando uma cotação base para consistência.
+        """
+        COTACAO_BASE_REVERSA = Decimal('5.30')
+        if COTACAO_BASE_REVERSA > 0:
+            margem_em_dolar = self.margem_venda_unitaria / COTACAO_BASE_REVERSA
+            return margem_em_dolar * self.quantidade
+        return Decimal('0.00')
 
     class Meta:
         unique_together = ('pedido', 'produto')

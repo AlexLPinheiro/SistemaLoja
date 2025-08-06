@@ -1,5 +1,11 @@
 from rest_framework import serializers
+from django.db import transaction
+from django.db.models import F
+from decimal import Decimal
+
+# Importa os modelos e a função utilitária
 from .models import Categoria, Produto, Cliente, Pedido, PedidoProduto
+from .utils import get_cotacao_dolar_com_encargos
 
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -7,57 +13,74 @@ class CategoriaSerializer(serializers.ModelSerializer):
         fields = ['id', 'nome']
 
 class ProdutoSerializer(serializers.ModelSerializer):
-    """
-    Serializer para LER (GET) dados de Produtos.
-    Inclui campos calculados e nomes de relações.
-    """
-    preco_real_custo = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     quantidade_vendas = serializers.IntegerField(read_only=True)
     categoria = serializers.CharField(source='categoria.nome', read_only=True)
     categoria_id = serializers.IntegerField(write_only=True)
+    adicionar_estoque = serializers.IntegerField(write_only=True, required=False, default=0, min_value=0)
+    
+    # Campo calculado em tempo real apenas para exibição
+    preco_real_custo_atual = serializers.SerializerMethodField()
 
     class Meta:
         model = Produto
         fields = [
             'id', 'nome', 'categoria', 'marca', 'preco_dolar', 
-            'preco_real_custo', 'quantidade_vendas', 'categoria_id'
+            'quantidade_vendas', 'quantidade_estoque', 
+            'categoria_id', 'adicionar_estoque',
+            'preco_real_custo_atual'
         ]
+        read_only_fields = ['quantidade_estoque']
     
+    def get_preco_real_custo_atual(self, obj):
+        cotacao_do_dia_com_encargos = get_cotacao_dolar_com_encargos()
+        TAXA_FLORIDA_PERCENTUAL = Decimal('0.065')
+        FATOR_FLORIDA = 1 + TAXA_FLORIDA_PERCENTUAL
+        custo_base_reais = obj.preco_dolar * cotacao_do_dia_com_encargos
+        custo_final_com_taxa = (custo_base_reais * FATOR_FLORIDA).quantize(Decimal('0.01'))
+        return custo_final_com_taxa
+
     def create(self, validated_data):
+        validated_data.pop('adicionar_estoque', None)
         categoria_id = validated_data.pop('categoria_id')
         try:
             categoria_instance = Categoria.objects.get(id=categoria_id)
         except Categoria.DoesNotExist:
             raise serializers.ValidationError({"categoria_id": "Categoria com este ID não existe."})
-        
         produto = Produto.objects.create(categoria=categoria_instance, **validated_data)
         return produto
 
-# --- SERIALIZERS PARA CRIAÇÃO DE PEDIDOS ---
+    def update(self, instance, validated_data):
+        quantidade_a_adicionar = validated_data.pop('adicionar_estoque', 0)
+        if quantidade_a_adicionar > 0:
+            instance.quantidade_estoque = F('quantidade_estoque') + quantidade_a_adicionar
+        
+        instance.nome = validated_data.get('nome', instance.nome)
+        instance.marca = validated_data.get('marca', instance.marca)
+        instance.preco_dolar = validated_data.get('preco_dolar', instance.preco_dolar)
+        
+        if 'categoria_id' in validated_data:
+            categoria_instance = Categoria.objects.get(id=validated_data['categoria_id'])
+            instance.categoria = categoria_instance
+
+        instance.save()
+        instance.refresh_from_db()
+        return instance
 
 class PedidoProdutoCreateSerializer(serializers.ModelSerializer):
-    """ Serializer para um item de pedido DURANTE A CRIAÇÃO (POST) """
     produto_id = serializers.IntegerField()
-
     class Meta:
         model = PedidoProduto
-        fields = ['produto_id', 'quantidade', 'preco_venda_unitario']
+        fields = ['produto_id', 'quantidade', 'margem_venda_unitaria']
 
 class PedidoCreateSerializer(serializers.ModelSerializer):
-    """ Serializer para o pedido completo DURANTE A CRIAÇÃO (POST) """
     itens = PedidoProdutoCreateSerializer(many=True)
     cliente_id = serializers.IntegerField(write_only=True, required=True)
 
     class Meta:
         model = Pedido
         fields = [
-            'cliente_id',
-            'metodo_pagamento', 
-            'quantidade_parcelas', 
-            'dia_vencimento_parcela', 
-            'status_pagamento', 
-            'valor_servico', # Adicionado aqui
-            'itens'
+            'cliente_id', 'metodo_pagamento', 'quantidade_parcelas', 
+            'dia_vencimento_parcela', 'status_pagamento', 'valor_servico', 'itens'
         ]
 
     def create(self, validated_data):
@@ -65,65 +88,84 @@ class PedidoCreateSerializer(serializers.ModelSerializer):
         cliente_id = validated_data.pop('cliente_id')
         
         try:
-            cliente_instance = Cliente.objects.get(id=cliente_id)
+            with transaction.atomic():
+                for item_data in itens_data:
+                    produto = Produto.objects.get(id=item_data['produto_id'])
+                    if produto.quantidade_estoque < item_data['quantidade']:
+                        raise serializers.ValidationError(
+                            f"Estoque insuficiente para '{produto.nome}'. "
+                            f"Disponível: {produto.quantidade_estoque}, Solicitado: {item_data['quantidade']}."
+                        )
+
+                cliente_instance = Cliente.objects.get(id=cliente_id)
+                pedido = Pedido.objects.create(cliente=cliente_instance, **validated_data)
+                
+                cotacao_do_dia_com_encargos = get_cotacao_dolar_com_encargos()
+                
+                for item_data in itens_data:
+                    produto_instance = Produto.objects.get(id=item_data.pop('produto_id'))
+                    
+                    produto_instance.quantidade_estoque -= item_data['quantidade']
+                    produto_instance.save()
+                    
+                    TAXA_FLORIDA_PERCENTUAL = Decimal('0.065')
+                    FATOR_FLORIDA = 1 + TAXA_FLORIDA_PERCENTUAL
+                    
+                    custo_base_reais = produto_instance.preco_dolar * cotacao_do_dia_com_encargos
+                    custo_final_com_taxa = (custo_base_reais * FATOR_FLORIDA).quantize(Decimal('0.01'))
+                    
+                    PedidoProduto.objects.create(
+                        pedido=pedido, 
+                        produto=produto_instance, 
+                        custo_real_item_unidade=custo_final_com_taxa,
+                        **item_data
+                    )
+            return pedido
         except Cliente.DoesNotExist:
             raise serializers.ValidationError({"cliente_id": f"Cliente com ID {cliente_id} não encontrado."})
-        
-        pedido = Pedido.objects.create(cliente=cliente_instance, **validated_data)
-        
-        for item_data in itens_data:
-            produto_id = item_data.pop('produto_id')
-            try:
-                produto_instance = Produto.objects.get(id=produto_id)
-                PedidoProduto.objects.create(pedido=pedido, produto=produto_instance, **item_data)
-            except Produto.DoesNotExist:
-                print(f"Produto com ID {produto_id} não encontrado. Item ignorado.")
-                continue
-            
-        return pedido
-
-# --- SERIALIZERS PARA LEITURA DE PEDIDOS E CLIENTES ---
+        except Produto.DoesNotExist:
+            raise serializers.ValidationError({"produto_id": "Um dos produtos do pedido não foi encontrado."})
 
 class PedidoProdutoSerializer(serializers.ModelSerializer):
-    """ Serializer para LER (GET) os itens de um pedido """
     produto = ProdutoSerializer(read_only=True)
     lucro_item = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
-
+    subtotal_item = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    custo_dolar_item_total = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    lucro_dolar_item_total = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     class Meta:
         model = PedidoProduto
-        fields = ['id', 'produto', 'quantidade', 'preco_venda_unitario', 'lucro_item']
+        fields = [
+            'id', 'produto', 'quantidade', 'margem_venda_unitaria', 
+            'lucro_item', 'subtotal_item', 'custo_real_item_unidade',
+            'custo_dolar_item_total', 'lucro_dolar_item_total'
+        ]
 
 class PedidoSerializer(serializers.ModelSerializer):
-    """ Serializer para LER (GET) um pedido """
     itens = PedidoProdutoSerializer(many=True, read_only=True)
     status_pedido = serializers.CharField(read_only=True)
-    subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     lucro_final = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     cliente = serializers.CharField(source='cliente.nome_completo', read_only=True)
+    subtotal_itens = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    valor_total_venda = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Pedido
         fields = [
             'id', 'cliente', 'data_pedido', 'metodo_pagamento', 'quantidade_parcelas',
             'dia_vencimento_parcela', 'status_pagamento', 'status_entrega', 
-            'status_pedido', 'subtotal', 
-            'valor_servico', # Adicionado aqui
-            'lucro_final', 'itens'
+            'status_pedido', 'subtotal_itens', 'valor_servico', 
+            'valor_total_venda', 'lucro_final', 'itens'
         ]
 
 class ClienteListSerializer(serializers.ModelSerializer):
-    """ Serializer para a LISTA (GET) de clientes """
     total_gasto = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
-
     class Meta:
         model = Cliente
         fields = ['id', 'nome_completo', 'telefone', 'endereco', 'total_gasto']
 
 class ClienteDetailSerializer(serializers.ModelSerializer):
-    """ Serializer para os DETALHES (GET) de um cliente """
     total_gasto = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     pedidos = PedidoSerializer(many=True, read_only=True)
-
     class Meta:
         model = Cliente
         fields = ['id', 'nome_completo', 'telefone', 'endereco', 'total_gasto', 'pedidos']
