@@ -80,14 +80,12 @@ class PedidoProduto(models.Model):
     quantidade = models.IntegerField(default=1)
     margem_venda_unitaria = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Valor adicionado ao custo do produto (lucro por unidade)")
     
-    # Permite nulo para compatibilidade com pedidos criados antes desta mudança
-    custo_real_item_unidade = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # Campo para "congelar" o custo do produto no momento da compra
+    custo_real_item_unidade = models.DecimalField(max_digits=10, decimal_places=2)
 
     @property
     def subtotal_item(self):
-        # Se o custo histórico for None (pedido antigo), trata como 0 para evitar erros.
-        custo_historico = self.custo_real_item_unidade or Decimal('0.00')
-        preco_final_unitario = custo_historico + self.margem_venda_unitaria
+        preco_final_unitario = self.custo_real_item_unidade + self.margem_venda_unitaria
         return preco_final_unitario * self.quantidade
 
     @property
