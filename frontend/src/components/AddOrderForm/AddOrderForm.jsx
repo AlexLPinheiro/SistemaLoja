@@ -6,15 +6,15 @@ import './AddOrderForm.css';
 const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
     // Estado para os dados principais do pedido
     const [metodoPagamento, setMetodoPagamento] = useState('a_vista');
-    const [quantidadeParcelas, setQuantidadeParcelas] = useState(2);
-    const [valorServico, setValorServico] = useState('');
+    const [quantidadeParcelas, setQuantidadeParcelas] = useState(2); // Inicia com 2 para ser válido
+    const [valorServico, setValorServico] = useState(''); // Estado para o valor do serviço
 
-    // Estado para os itens do pedido
+    // Estado para os itens do pedido (produtos)
     const [orderItems, setOrderItems] = useState([
-        { id: Date.now(), produto_id: '', quantidade: 1, margem_venda_unitaria: '', productDetails: null }
+        { id: Date.now(), produto_id: '', quantidade: 1, preco_venda_unitario: '', productDetails: null }
     ]);
     
-    // Estado para a lista de produtos disponíveis
+    // Estado para a lista de produtos disponíveis no sistema
     const [availableProducts, setAvailableProducts] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -33,11 +33,11 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
         fetchProducts();
     }, []);
 
-    // Adiciona uma nova linha de produto
+    // Adiciona uma nova linha de produto em branco
     const handleAddRow = () => {
         setOrderItems([
             ...orderItems,
-            { id: Date.now(), produto_id: '', quantidade: 1, margem_venda_unitaria: '', productDetails: null }
+            { id: Date.now(), produto_id: '', quantidade: 1, preco_venda_unitario: '', productDetails: null }
         ]);
     };
 
@@ -57,19 +57,20 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
+        // Monta o payload (dados a serem enviados) para a API
         const payload = {
             cliente_id: clientId,
             metodo_pagamento: metodoPagamento,
             quantidade_parcelas: metodoPagamento === 'parcelado' ? parseInt(quantidadeParcelas, 10) : 1,
             status_pagamento: 'nao_pago',
-            valor_servico: parseFloat(valorServico) || 0.00,
+            valor_servico: parseFloat(valorServico) || 0.00, // Envia o valor do serviço
             itens: orderItems
                 .map(item => ({
                     produto_id: parseInt(item.produto_id, 10),
                     quantidade: parseInt(item.quantidade, 10),
-                    margem_venda_unitaria: parseFloat(item.margem_venda_unitaria) || 0.00
+                    preco_venda_unitario: parseFloat(item.preco_venda_unitario).toFixed(2)
                 }))
-                .filter(item => item.produto_id && !isNaN(item.produto_id))
+                .filter(item => item.produto_id && !isNaN(item.produto_id)) // Filtra linhas vazias ou inválidas
         };
         
         if (payload.itens.length === 0) {
@@ -81,7 +82,7 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
             await api.post('/pedidos/', payload);
             alert("Pedido adicionado com sucesso!");
             if (onOrderAdded) {
-                onOrderAdded();
+                onOrderAdded(); // Avisa a página pai para atualizar
             }
         } catch (error) {
             console.error("Erro ao criar pedido:", error.response?.data);
@@ -123,6 +124,10 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
 
             <div className="products-section">
                 {orderItems.map((item, index) => {
+                    const totalCostUSD = item.productDetails 
+                        ? (Number(item.productDetails.preco_dolar) * (Number(item.quantidade) || 0)).toFixed(2) 
+                        : '0.00';
+                    
                     const totalCostBRL = item.productDetails 
                         ? (Number(item.productDetails.preco_real_custo) * (Number(item.quantidade) || 0)).toFixed(2)
                         : '0.00';
@@ -141,14 +146,10 @@ const AddOrderForm = ({ onClose, onOrderAdded, clientId }) => {
                             </select>
                             <input type="number" min="1" placeholder="Qtd" value={item.quantidade} onChange={(e) => handleItemChange(index, 'quantidade', e.target.value)} />
                             <div className="price-ref">
-                                <span>Custo Total R$: {totalCostBRL}</span>
+                                <span>Custo U$: {totalCostUSD}</span>
+                                <span>Custo R$: {totalCostBRL}</span>
                             </div>
-                            <input 
-                                type="text" 
-                                placeholder="Valor Adicionado (R$)" 
-                                value={item.margem_venda_unitaria} 
-                                onChange={(e) => handleItemChange(index, 'margem_venda_unitaria', e.target.value)} 
-                            />
+                            <input type="text" placeholder="Preço Venda (R$)" value={item.preco_venda_unitario} onChange={(e) => handleItemChange(index, 'preco_venda_unitario', e.target.value)} />
                         </div>
                     );
                 })}

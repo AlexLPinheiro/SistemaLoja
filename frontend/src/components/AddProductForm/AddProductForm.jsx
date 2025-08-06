@@ -9,12 +9,15 @@ const AddProductForm = ({ onClose, onProductAdded, categories, loadingCategories
     const [marca, setMarca] = useState('');
     const [precoDolar, setPrecoDolar] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
-    const [quantidadeEstoque, setQuantidadeEstoque] = useState(0); // Novo estado para estoque
 
-    // Efeito para selecionar a primeira categoria como padrão
+    // Este useEffect agora reage às props que vêm do componente pai.
     useEffect(() => {
+        // Quando as categorias terminam de carregar, seleciona a primeira como padrão.
         if (!loadingCategories && categories.length > 0) {
-            if (!selectedCategory) {
+            // Se a categoria atualmente selecionada não existir mais na lista ou estiver vazia,
+            // define a primeira da lista como a nova seleção.
+            const currentCategoryExists = categories.some(c => c.id.toString() === selectedCategory.toString());
+            if (!selectedCategory || !currentCategoryExists) {
                 setSelectedCategory(categories[0].id);
             }
         }
@@ -32,18 +35,16 @@ const AddProductForm = ({ onClose, onProductAdded, categories, loadingCategories
             marca: marca,
             preco_dolar: precoDolar,
             categoria_id: selectedCategory,
-            quantidade_estoque: parseInt(quantidadeEstoque, 10) || 0, // Envia a quantidade de estoque
         };
 
         try {
             await api.post('/produtos/', newProductData);
-            alert("Produto adicionado com sucesso!");
+            console.log("Produto salvo com sucesso!");
             if (onProductAdded) {
                 onProductAdded();
             }
         } catch (error) {
             console.error("Erro ao salvar produto:", error.response?.data || error.message);
-            alert("Falha ao adicionar o produto. Verifique os dados.");
         }
     };
 
@@ -91,17 +92,6 @@ const AddProductForm = ({ onClose, onProductAdded, categories, loadingCategories
                     <input 
                         type="text" id="priceUSD" placeholder="15.00" 
                         value={precoDolar} onChange={(e) => setPrecoDolar(e.target.value)}
-                    />
-                </div>
-
-                <div className="form-group">
-                    <label htmlFor="quantity">Quantidade em Estoque</label>
-                    <input 
-                        type="number" 
-                        id="quantity"
-                        min="0"
-                        value={quantidadeEstoque}
-                        onChange={(e) => setQuantidadeEstoque(e.target.value)}
                     />
                 </div>
             </div>

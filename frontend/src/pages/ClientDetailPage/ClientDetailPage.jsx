@@ -1,183 +1,253 @@
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaPencilAlt, FaTrash } from 'react-icons/fa';
+import { useParams } from 'react-router-dom';
+import { FaPencilAlt, FaPlus, FaSave, FaTimes, FaTrash } from 'react-icons/fa';
 
-// Componentes
+// Componentes e Serviços
 import Button from '../../components/Button/Button';
+import StatusPill from '../../components/StatusPill/StatusPill';
 import Modal from '../../components/Modal/Modal';
-import AddProductForm from '../../components/AddProductForm/AddProductForm';
-import EditProductForm from '../../components/EditProductForm/EditProductForm';
-import AddCategoryForm from '../../components/AddCategoryForm/AddCategoryForm';
-
-// Serviços e Estilos
+import AddOrderForm from '../../components/AddOrderForm/AddOrderForm';
 import api from '../../services/api';
-import './ProductsListPage.css';
+
+// Estilos
+import './ClientDetailPage.css';
 import '../../styles/table.css';
 
-const formatCurrency = (value) => {
-    if (isNaN(value)) return 'R$ 0,00';
-    return Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-};
+const ClientDetailPage = () => {
+    const { clientId } = useParams();
+    const [client, setClient] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [expandedOrderId, setExpandedOrderId] = useState(null);
+    const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editData, setEditData] = useState({ nome_completo: '', telefone: '', endereco: '' });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-const ProductsListPage = () => {
-    // Estados para os dados
-    const [products, setProducts] = useState([]);
-    const [loadingProducts, setLoadingProducts] = useState(true);
-    const [categories, setCategories] = useState([]);
-    const [loadingCategories, setLoadingCategories] = useState(true);
-    const [searchQuery, setSearchQuery] = useState('');
-
-    // Estados para controlar os modais
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [editingProduct, setEditingProduct] = useState(null);
-
-    // Função para buscar produtos da API (com filtro de busca)
-    const fetchProducts = async (query = '') => {
+    // Função para buscar os detalhes do cliente
+    const fetchClientDetails = async () => {
         try {
-            setLoadingProducts(true);
-            const response = await api.get('/produtos/', { params: { search: query } });
-            setProducts(response.data);
+            const response = await api.get(`/clientes/${clientId}/`);
+            const clientData = response.data;
+            setClient(clientData);
+            setEditData({
+                nome_completo: clientData.nome_completo,
+                telefone: clientData.telefone,
+                endereco: clientData.endereco,
+            });
         } catch (error) {
-            console.error("Falha ao buscar produtos:", error);
+            console.error("Falha ao buscar detalhes do cliente:", error);
         } finally {
-            setLoadingProducts(false);
+            setLoading(false);
         }
     };
 
-    // Função para buscar categorias da API
-    const fetchCategories = async () => {
+    useEffect(() => {
+        setLoading(true);
+        fetchClientDetails();
+    }, [clientId]);
+
+    // Função para atualizar o status de um pedido
+    const handleStatusUpdate = async (orderId, field, newValue) => {
         try {
-            setLoadingCategories(true);
-            const response = await api.get('/categorias/');
-            setCategories(response.data);
+            const response = await api.patch(`/pedidos/${orderId}/atualizar-status/`, {
+                [field]: newValue
+            });
+
+            // Atualiza o estado local para refletir a mudança imediatamente
+            setClient(prevClient => {
+                const updatedPedidos = prevClient.pedidos.map(order => 
+                    order.id === orderId ? response.data : order
+                );
+                return { ...prevClient, pedidos: updatedPedidos };
+            });
         } catch (error) {
-            console.error("Falha ao buscar categorias:", error);
+            console.error("Erro ao atualizar status:", error.response?.data);
+            alert("Falha ao atualizar o status do pedido.");
+        }
+    };
+
+    // Funções de edição do cliente
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setEditData(prevData => ({ ...prevData, [name]: value }));
+    };
+
+    const handleSave = async () => {
+        setIsSubmitting(true);
+        try {
+            const response = await api.put(`/clientes/${clientId}/`, editData);
+            setClient(response.data);
+            setIsEditing(false);
+            alert("Informações do cliente salvas com sucesso!");
+        } catch (error) {
+            console.error("Erro ao salvar alterações:", error.response?.data);
+            alert("Falha ao salvar. Verifique os dados e tente novamente.");
         } finally {
-            setLoadingCategories(false);
+            setIsSubmitting(false);
         }
     };
     
-    // Efeitos para carregar dados
-    useEffect(() => { 
-        fetchCategories(); 
-    }, []);
+    const handleCancel = () => {
+        setEditData({
+            nome_completo: client.nome_completo,
+            telefone: client.telefone,
+            endereco: client.endereco,
+        });
+        setIsEditing(false);
+    };
 
-    useEffect(() => {
-        const timerId = setTimeout(() => {
-            fetchProducts(searchQuery);
-        }, 500);
-        return () => clearTimeout(timerId);
-    }, [searchQuery]);
+    const handleRowClick = (orderId, e) => {
+        if (e.target.closest('button')) {
+            return;
+        }
+        setExpandedOrderId(prevId => (prevId === orderId ? null : orderId));
+    };
 
-    // Função para apagar um produto
-    const handleDeleteProduct = async (productId) => {
-        if (window.confirm('Tem certeza que deseja apagar este produto?')) {
+    // Função para apagar um pedido
+    const handleDeleteOrder = async (orderId, e) => {
+        e.stopPropagation();
+        if (window.confirm('Tem certeza que deseja apagar este pedido? Esta ação não pode ser desfeita.')) {
             try {
-                await api.delete(`/produtos/${productId}/`);
-                setProducts(prevProducts => prevProducts.filter(p => p.id !== productId));
-                alert('Produto apagado com sucesso!');
+                await api.delete(`/pedidos/${orderId}/`);
+                setClient(prevClient => ({
+                    ...prevClient,
+                    pedidos: prevClient.pedidos.filter(pedido => pedido.id !== orderId)
+                }));
+                alert('Pedido apagado com sucesso!');
             } catch (error) {
-                console.error('Erro ao apagar produto:', error.response?.data);
-                alert('Falha ao apagar o produto.');
+                console.error("Erro ao apagar pedido:", error.response?.data);
+                alert("Falha ao apagar o pedido.");
             }
         }
     };
 
-    // Funções para o fluxo de edição
-    const handleOpenEditModal = (product) => {
-        setEditingProduct(product);
-        setIsEditModalOpen(true);
+    // Funções auxiliares para formatar dados para exibição
+    const formatPaymentMethod = (method) => {
+        if (method === 'a_vista') return 'À Vista';
+        return method.charAt(0).toUpperCase() + method.slice(1);
     };
 
-    const handleProductUpdated = () => {
-        setIsEditModalOpen(false);
-        setEditingProduct(null);
-        fetchProducts(searchQuery); // Atualiza a lista para refletir as mudanças
+    const formatStatus = (status) => {
+        const translations = {
+            'nao_pago': 'Não Pago', 'em_atraso': 'Em Atraso',
+            'pago': 'Pago', 'em_dia': 'Em Dia',
+            'nao_entregue': 'Não Entregue', 'entregue': 'Entregue'
+        };
+        return translations[status] || status;
     };
 
-    // Funções de callback para os modais de adição
-    const handleProductAdded = () => {
-        setIsAddModalOpen(false);
-        setSearchQuery(''); // Limpa a busca para garantir que o novo produto apareça
-        fetchProducts(''); // Busca todos os produtos novamente
+    const getStatusPillType = (status) => {
+        switch (status) {
+            case 'pago':
+            case 'entregue':
+            case 'em_dia':
+                return 'success';
+            case 'nao_pago':
+            case 'nao_entregue':
+            case 'em_atraso':
+            default:
+                return 'info';
+        }
     };
-    
-    const handleCategoryAdded = () => {
-        setIsCategoryModalOpen(false);
-        fetchCategories(); // Atualiza a lista de categorias
-    };
+
+    if (loading) {
+        return <main className="main-content"><div>Carregando...</div></main>;
+    }
+
+    if (!client) {
+        return <main className="main-content"><div>Cliente não encontrado.</div></main>;
+    }
 
     return (
         <>
             <main className="main-content">
-                <div className="page-header">
-                    <div className="header-actions">
-                        <Button onClick={() => setIsAddModalOpen(true)}>Adicionar produto</Button>
-                        <Button onClick={() => setIsCategoryModalOpen(true)} variant="success">Adicionar categoria</Button>
-                    </div>
-                    <div className="search-bar">
-                        <FaSearch className="search-icon" />
-                        <input type="text" placeholder="Pesquise por nome, categoria ou marca" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-                    </div>
+                {/* Seção de Informações do Cliente */}
+                <h2 className="section-title">Informações do cliente:</h2>
+                <div className="client-info-card">
+                    <div><strong>Cliente:</strong>{isEditing ? <input type="text" name="nome_completo" value={editData.nome_completo} onChange={handleInputChange} className="info-card-input" disabled={isSubmitting}/> : <span>{client.nome_completo}</span>}</div>
+                    <div><strong>N° Telefone:</strong>{isEditing ? <input type="text" name="telefone" value={editData.telefone} onChange={handleInputChange} className="info-card-input" disabled={isSubmitting}/> : <span>{client.telefone}</span>}</div>
+                    <div><strong>Endereço:</strong>{isEditing ? <input type="text" name="endereco" value={editData.endereco} onChange={handleInputChange} className="info-card-input" disabled={isSubmitting}/> : <span>{client.endereco}</span>}</div>
+                    <div><strong>Total gasto:</strong><span>{Number(client.total_gasto).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span></div>
+                    <div className="actions">{isEditing ? (<div className="edit-actions"><button onClick={handleSave} className="action-btn save-btn" disabled={isSubmitting}>{isSubmitting ? '...' : <FaSave />}</button><button onClick={handleCancel} className="action-btn cancel-btn" disabled={isSubmitting}><FaTimes /></button></div>) : (<button onClick={() => setIsEditing(true)} className="edit-btn"><FaPencilAlt /></button>)}</div>
                 </div>
 
+                {/* Seção de Pedidos */}
+                <div className="page-header"><h2 className="section-title">Pedidos:</h2><Button icon={FaPlus} onClick={() => setIsOrderModalOpen(true)}>Adicionar pedido</Button></div>
                 <div className="table-wrapper">
                     <table className="data-table">
                         <thead>
                             <tr>
-                                <th>Produto</th>
-                                <th>Marca</th>
-                                <th>Categoria</th>
-                                <th>Preço em Dolar</th>
-                                <th>Preço em reais (Custo)</th>
+                                <th>Data do pedido</th>
+                                <th>Método de Pagamento</th>
+                                <th>Parcelamento</th>
+                                <th>Status do Pagamento</th>
+                                <th>Status da Entrega</th>
+                                <th>Subtotal</th>
+                                <th>Valor Serviço</th>
+                                <th>Lucro Total</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {loadingProducts ? (
-                                <tr><td colSpan="6" style={{ textAlign: 'center' }}>Carregando...</td></tr>
-                            ) : (
-                                products.map(product => (
-                                    <tr key={product.id}>
-                                        <td>{product.nome}</td>
-                                        <td>{product.marca}</td>
-                                        <td>{product.categoria}</td>
-                                        <td>{Number(product.preco_dolar).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</td>
-                                        <td>{formatCurrency(0)} {/* O custo em reais não está disponível no ProdutoSerializer, isso pode ser ajustado se necessário */}</td>
+                            {client.pedidos.map(order => (
+                                <React.Fragment key={order.id}>
+                                    <tr onClick={(e) => handleRowClick(order.id, e)}>
+                                        <td>{new Date(order.data_pedido).toLocaleDateString('pt-BR')}</td>
+                                        <td>{formatPaymentMethod(order.metodo_pagamento)}</td>
+                                        <td>{order.quantidade_parcelas}x</td>
+                                        <td><StatusPill text={formatStatus(order.status_pagamento)} type={getStatusPillType(order.status_pagamento)} onClick={() => handleStatusUpdate(order.id, 'status_pagamento', order.status_pagamento === 'pago' ? 'nao_pago' : 'pago')}/></td>
+                                        <td><StatusPill text={formatStatus(order.status_entrega)} type={getStatusPillType(order.status_entrega)} onClick={() => handleStatusUpdate(order.id, 'status_entrega', order.status_entrega === 'entregue' ? 'nao_entregue' : 'entregue')}/></td>
+                                        <td>{Number(order.subtotal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                        <td>{Number(order.valor_servico).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                        <td>{Number(order.lucro_final).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                                         <td>
-                                            <div className="action-buttons">
-                                                <button className="action-btn edit-btn" onClick={() => handleOpenEditModal(product)}><FaPencilAlt /></button>
-                                                <button className="action-btn delete-btn" onClick={() => handleDeleteProduct(product.id)}><FaTrash /></button>
-                                            </div>
+                                            <button className="action-btn delete-btn" onClick={(e) => handleDeleteOrder(order.id, e)}>
+                                                <FaTrash />
+                                            </button>
                                         </td>
                                     </tr>
-                                ))
-                            )}
+                                    {expandedOrderId === order.id && order.itens.length > 0 && (
+                                        <tr className="products-row">
+                                            <td colSpan="9">
+                                                <div className="products-table-container">
+                                                    <h3 className="products-title">Produtos:</h3>
+                                                    <table className="products-table">
+                                                        <thead><tr><th>Qtd</th><th>Nome</th><th>Marca</th><th>Categoria</th><th>Preço Custo (R$)</th><th>Preço Venda (R$)</th><th>Lucro (R$)</th></tr></thead>
+                                                        <tbody>
+                                                            {order.itens.map(item => (
+                                                                <tr key={item.id}>
+                                                                    <td>{item.quantidade}x</td><td>{item.produto.nome}</td><td>{item.produto.marca}</td><td>{item.produto.categoria}</td>
+                                                                    <td>{Number(item.produto.preco_real_custo).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                                                    <td>{Number(item.preco_venda_unitario).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                                                    <td>{Number(item.lucro_item).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </React.Fragment>
+                            ))}
                         </tbody>
                     </table>
                 </div>
             </main>
 
-            <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Formulário para adicionar produto:">
-                <AddProductForm onClose={() => setIsAddModalOpen(false)} onProductAdded={handleProductAdded} categories={categories} loadingCategories={loadingCategories}/>
-            </Modal>
-
-            <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Formulário para editar produto:">
-                <EditProductForm 
-                    onClose={() => setIsEditModalOpen(false)} 
-                    onProductUpdated={handleProductUpdated} 
-                    productToEdit={editingProduct} 
-                    categories={categories} 
-                    loadingCategories={loadingCategories}
+            {/* Modal de Adicionar Pedido */}
+            <Modal isOpen={isOrderModalOpen} onClose={() => setIsOrderModalOpen(false)} title="Formulário para adicionar pedido">
+                <AddOrderForm 
+                    onClose={() => setIsOrderModalOpen(false)} 
+                    onOrderAdded={() => {
+                        setIsOrderModalOpen(false);
+                        fetchClientDetails();
+                    }}
+                    clientId={clientId}
                 />
-            </Modal>
-
-            <Modal isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} title="Formulário para adicionar categoria:">
-                <AddCategoryForm onClose={() => setIsCategoryModalOpen(false)} onCategoryAdded={handleCategoryAdded}/>
             </Modal>
         </>
     );
 };
 
-export default ProductsListPage;
+export default ClientDetailPage;
