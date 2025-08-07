@@ -18,7 +18,6 @@ class Produto(models.Model):
 
     @property
     def quantidade_vendas(self):
-        # Calcula o total de unidades vendidas deste produto em todos os pedidos
         total_vendido = self.itens_pedido.aggregate(total=Sum('quantidade'))['total']
         return total_vendido or 0
 
@@ -32,9 +31,8 @@ class Cliente(models.Model):
 
     @property
     def total_gasto(self):
-        """ Calcula o valor total que o cliente pagou em todos os pedidos. """
-        total = sum(pedido.valor_total_venda for pedido in self.pedidos.all())
-        return total or Decimal('0.00')
+        total_pago = sum(pedido.valor_total_venda for pedido in self.pedidos.all())
+        return total_pago or Decimal('0.00')
 
     def __str__(self):
         return self.nome_completo
@@ -63,17 +61,14 @@ class Pedido(models.Model):
 
     @property
     def subtotal_itens(self):
-        """ Soma do (custo + margem) * quantidade de cada item. """
         return sum(item.subtotal_item for item in self.itens.all())
 
     @property
     def valor_total_venda(self):
-        """ O valor final que o cliente paga (subtotal dos itens + taxa de serviço). """
         return self.subtotal_itens + self.valor_servico
     
     @property
     def lucro_final(self):
-        """ Soma da (margem * quantidade) de cada item + valor de serviço. """
         lucro_dos_itens = sum(item.lucro_item for item in self.itens.all())
         return lucro_dos_itens + self.valor_servico
 
@@ -82,33 +77,24 @@ class PedidoProduto(models.Model):
     produto = models.ForeignKey(Produto, related_name='itens_pedido', on_delete=models.CASCADE)
     quantidade = models.IntegerField(default=1)
     margem_venda_unitaria = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Valor adicionado ao custo do produto (lucro por unidade)")
-    
-    # Campo para "congelar" o custo do produto no momento da compra
     custo_real_item_unidade = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
 
     @property
     def subtotal_item(self):
-        """ O preço final de venda desta linha de produto (custo histórico + margem) * qtd. """
         custo_historico = self.custo_real_item_unidade or Decimal('0.00')
         preco_final_unitario = custo_historico + self.margem_venda_unitaria
         return preco_final_unitario * self.quantidade
 
     @property
     def lucro_item(self):
-        """ O lucro desta linha de produto é a margem * qtd. """
         return self.margem_venda_unitaria * self.quantidade
 
     @property
     def custo_dolar_item_total(self):
-        """ Custo total em dólar para esta linha de produto (preço * qtd). """
         return self.produto.preco_dolar * self.quantidade
 
     @property
     def lucro_dolar_item_total(self):
-        """ 
-        Calcula o lucro em dólar. Converte a margem em reais de volta para
-        dólar usando uma cotação base para consistência.
-        """
         COTACAO_BASE_REVERSA = Decimal('5.30')
         if COTACAO_BASE_REVERSA > 0:
             margem_em_dolar = self.margem_venda_unitaria / COTACAO_BASE_REVERSA
