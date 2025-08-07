@@ -18,7 +18,7 @@ class ProdutoSerializer(serializers.ModelSerializer):
     categoria_id = serializers.IntegerField(write_only=True)
     adicionar_estoque = serializers.IntegerField(write_only=True, required=False, default=0, min_value=0)
     
-    # Campo calculado em tempo real apenas para exibição
+    # Campo calculado em tempo real apenas para exibição na lista de produtos
     preco_real_custo_atual = serializers.SerializerMethodField()
 
     class Meta:
@@ -32,9 +32,15 @@ class ProdutoSerializer(serializers.ModelSerializer):
         read_only_fields = ['quantidade_estoque']
     
     def get_preco_real_custo_atual(self, obj):
+        """
+        Calcula o custo em tempo real para exibição na lista de produtos,
+        incluindo todos os encargos e taxas.
+        """
         cotacao_do_dia_com_encargos = get_cotacao_dolar_com_encargos()
+        
         TAXA_FLORIDA_PERCENTUAL = Decimal('0.065')
         FATOR_FLORIDA = 1 + TAXA_FLORIDA_PERCENTUAL
+        
         custo_base_reais = obj.preco_dolar * cotacao_do_dia_com_encargos
         custo_final_com_taxa = (custo_base_reais * FATOR_FLORIDA).quantize(Decimal('0.01'))
         return custo_final_com_taxa
@@ -92,6 +98,7 @@ class PedidoCreateSerializer(serializers.ModelSerializer):
                 for item_data in itens_data:
                     produto = Produto.objects.get(id=item_data['produto_id'])
                     if produto.quantidade_estoque < item_data['quantidade']:
+                        # Retorna a mensagem de erro específica para o frontend
                         raise serializers.ValidationError(
                             f"Estoque insuficiente para '{produto.nome}'. "
                             f"Disponível: {produto.quantidade_estoque}, Solicitado: {item_data['quantidade']}."

@@ -14,7 +14,7 @@ import './ProductsListPage.css';
 import '../../styles/table.css';
 
 const formatCurrency = (value) => {
-    if (isNaN(value)) return 'R$ 0,00';
+    if (isNaN(value) || value === null) return 'R$ 0,00';
     return Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 };
 
@@ -29,7 +29,7 @@ const ProductsListPage = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
 
-    const fetchProducts = async (query) => {
+    const fetchProducts = async (query = '') => {
         try {
             setLoadingProducts(true);
             const response = await api.get('/produtos/', { params: { search: query } });
@@ -53,9 +53,14 @@ const ProductsListPage = () => {
         }
     };
     
-    useEffect(() => { fetchCategories(); }, []);
+    useEffect(() => { 
+        fetchCategories(); 
+    }, []);
+
     useEffect(() => {
-        const timerId = setTimeout(() => { fetchProducts(searchQuery); }, 500);
+        const timerId = setTimeout(() => {
+            fetchProducts(searchQuery);
+        }, 500);
         return () => clearTimeout(timerId);
     }, [searchQuery]);
 
@@ -85,8 +90,8 @@ const ProductsListPage = () => {
 
     const handleProductAdded = () => {
         setIsAddModalOpen(false);
-        fetchProducts('');
         setSearchQuery('');
+        fetchProducts('');
     };
     
     const handleCategoryAdded = () => {
@@ -112,7 +117,12 @@ const ProductsListPage = () => {
                     <table className="data-table">
                         <thead>
                             <tr>
-                                <th>Produto</th><th>Marca</th><th>Categoria</th><th>Preço em Dolar</th><th>Preço em reais</th><th>Ações</th>
+                                <th>Produto</th>
+                                <th>Marca</th>
+                                <th>Categoria</th>
+                                <th>Preço em Dolar</th>
+                                <th>Preço em Reais (Custo Atual)</th>
+                                <th>Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -121,9 +131,11 @@ const ProductsListPage = () => {
                             ) : (
                                 products.map(product => (
                                     <tr key={product.id}>
-                                        <td>{product.nome}</td><td>{product.marca}</td><td>{product.categoria}</td>
+                                        <td>{product.nome}</td>
+                                        <td>{product.marca}</td>
+                                        <td>{product.categoria}</td>
                                         <td>{Number(product.preco_dolar).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</td>
-                                        <td>{formatCurrency(product.preco_real_custo)}</td>
+                                        <td>{formatCurrency(product.preco_real_custo_atual)}</td>
                                         <td>
                                             <div className="action-buttons">
                                                 <button className="action-btn edit-btn" onClick={() => handleOpenEditModal(product)}><FaPencilAlt /></button>
@@ -143,7 +155,13 @@ const ProductsListPage = () => {
             </Modal>
 
             <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Formulário para editar produto:">
-                <EditProductForm onClose={() => setIsEditModalOpen(false)} onProductUpdated={handleProductUpdated} productToEdit={editingProduct} categories={categories} loadingCategories={loadingCategories} />
+                <EditProductForm 
+                    onClose={() => setIsEditModalOpen(false)} 
+                    onProductUpdated={handleProductUpdated} 
+                    productToEdit={editingProduct} 
+                    categories={categories} 
+                    loadingCategories={loadingCategories}
+                />
             </Modal>
 
             <Modal isOpen={isCategoryModalOpen} onClose={() => setIsCategoryModalOpen(false)} title="Formulário para adicionar categoria:">

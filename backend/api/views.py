@@ -4,11 +4,18 @@ from rest_framework import viewsets, views, response, status
 from rest_framework.filters import SearchFilter
 from rest_framework.decorators import action
 from django.db.models import Count, Q
+
+# Importa os modelos
 from .models import Categoria, Produto, Cliente, Pedido
+
+# Importa os serializers
 from .serializers import (
     CategoriaSerializer, ProdutoSerializer, 
     ClienteListSerializer, ClienteDetailSerializer, PedidoSerializer, PedidoCreateSerializer
 )
+
+# Importa a função utilitária para a cotação do dólar
+from .utils import get_cotacao_dolar_com_encargos
 
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all()
@@ -21,6 +28,7 @@ class ProdutoViewSet(viewsets.ModelViewSet):
     search_fields = ['nome', 'marca', 'categoria__nome']
 
     def get_queryset(self):
+        # Anota cada produto com a contagem de vendas e ordena por ela
         return Produto.objects.annotate(
             vendas_count=Count('itens_pedido')
         ).order_by('-vendas_count')
@@ -31,11 +39,13 @@ class ClienteViewSet(viewsets.ModelViewSet):
     search_fields = ['nome_completo', 'telefone', 'endereco']
 
     def get_serializer_class(self):
+        # Usa um serializer diferente para a lista e para o detalhe
         if self.action == 'retrieve':
             return ClienteDetailSerializer
         return ClienteListSerializer
 
     def get_queryset(self):
+        # Prioriza clientes com pedidos em aberto
         filtro_pedidos_abertos = Q(pedidos__status_entrega='nao_entregue') | Q(pedidos__status_pagamento__in=['nao_pago', 'em_atraso'])
         return Cliente.objects.annotate(
             pedidos_em_aberto=Count('pedidos', filter=filtro_pedidos_abertos)
@@ -48,6 +58,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
     search_fields = ['cliente__nome_completo']
 
     def get_serializer_class(self):
+        # Usa um serializer diferente para criar um pedido
         if self.action == 'create':
             return PedidoCreateSerializer
         return PedidoSerializer
@@ -75,6 +86,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
             )
 
     def get_queryset(self):
+        # Prioriza pedidos em aberto na listagem
         return Pedido.objects.all().extra(
            select={'is_aberto': "status_entrega <> 'entregue' OR status_pagamento <> 'pago'"},
            order_by=['-is_aberto']
@@ -82,36 +94,21 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
 class DashboardView(views.APIView):
     def get(self, request, *args, **kwargs):
-        # 1. Constantes para os encargos
-        ENCARGO_PERCENTUAL = Decimal('0.035')  # 3.5%
-        TAXA_CONVERSAO_PERCENTUAL = Decimal('0.019')  # 1.9%
-        FATOR_AJUSTE_TOTAL = 1 + ENCARGO_PERCENTUAL + TAXA_CONVERSAO_PERCENTUAL
-
-        cotacao_dolar_ajustada = (Decimal('5.30') * FATOR_AJUSTE_TOTAL).quantize(Decimal('0.01')) # Valor padrão já ajustado
-        try:
-            # 2. Busca a cotação comercial
-            response_externa = requests.get('https://economia.awesomeapi.com.br/json/last/USD-BRL')
-            response_externa.raise_for_status()
-            data_externa = response_externa.json()
-            cotacao_comercial = Decimal(data_externa['USDBRL']['bid'])
-            
-            # 3. Aplica o fator de ajuste
-            cotacao_dolar_ajustada = (cotacao_comercial * FATOR_AJUSTE_TOTAL).quantize(Decimal('0.01'))
-
-        except requests.exceptions.RequestException as e:
-            print(f"Erro ao buscar cotação do dólar, usando valor padrão ajustado: {e}")
+        # Usa a função utilitária para buscar a cotação do dia
+        cotacao_dolar_atual = get_cotacao_dolar_com_encargos()
         
         pedidos_abertos = Pedido.objects.filter(
             Q(status_entrega='nao_entregue') | ~Q(status_pagamento='pago')
         ).distinct().count()
         
+        # Estes cálculos agora usam as propriedades atualizadas dos modelos
         lucro_total = sum(p.lucro_final for p in Pedido.objects.all())
-        gastos_totais = sum(p.subtotal for p in Pedido.objects.all())
+        gastos_totais = sum(p.valor_total_venda for p in Pedido.objects.all())
 
         data = {
             'lucro_do_periodo': lucro_total,
             'gastos_do_periodo': gastos_totais,
-            'cotacao_dolar_dia': cotacao_dolar_ajustada,
+            'cotacao_dolar_dia': cotacao_dolar_atual,
             'pedidos_em_aberto': pedidos_abertos
         }
         return response.Response(data)
