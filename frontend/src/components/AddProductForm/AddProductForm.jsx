@@ -9,9 +9,11 @@ const AddProductForm = ({ onClose, onProductAdded, categories, loadingCategories
     const [marca, setMarca] = useState('');
     const [precoDolar, setPrecoDolar] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
-    const [quantidadeEstoque, setQuantidadeEstoque] = useState(0); // Estado para o estoque inicial
+    
+    // --- NOVO ESTADO PARA O ESTOQUE INICIAL ---
+    const [quantidadeEstoque, setQuantidadeEstoque] = useState(0);
 
-    // Efeito para selecionar a primeira categoria como padrão quando a lista carregar
+    // Efeito para selecionar a primeira categoria como padrão
     useEffect(() => {
         if (!loadingCategories && categories.length > 0) {
             if (!selectedCategory) {
@@ -32,7 +34,8 @@ const AddProductForm = ({ onClose, onProductAdded, categories, loadingCategories
             marca: marca,
             preco_dolar: precoDolar,
             categoria_id: selectedCategory,
-            quantidade_estoque: parseInt(quantidadeEstoque, 10) || 0, // Envia a quantidade de estoque
+            // --- ENVIA A QUANTIDADE DE ESTOQUE NO PAYLOAD ---
+            quantidade_estoque: parseInt(quantidadeEstoque, 10) || 0,
         };
 
         try {
@@ -94,6 +97,7 @@ const AddProductForm = ({ onClose, onProductAdded, categories, loadingCategories
                     />
                 </div>
 
+                {/* --- NOVO CAMPO DE INPUT PARA O ESTOQUE --- */}
                 <div className="form-group">
                     <label htmlFor="quantity">Quantidade em Estoque</label>
                     <input 
