@@ -11,7 +11,7 @@ const AddProductForm = ({ onClose, onProductAdded, categories, loadingCategories
     const [selectedCategory, setSelectedCategory] = useState('');
     
     // --- NOVO ESTADO PARA O ESTOQUE INICIAL ---
-    const [quantidadeEstoque, setQuantidadeEstoque] = useState(0);
+    const [quantidadeEstoque, setQuantidadeEstoque] = useState(1);
 
     // Efeito para selecionar a primeira categoria como padrão
     useEffect(() => {
